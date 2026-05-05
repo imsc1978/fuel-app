@@ -85,17 +85,10 @@ button{
   border-radius:12px;
   background:#4da3ff;
   color:#fff;
-  font-size:16px;
 }
 
-.item{
-  padding:12px 0;
-  border-bottom:1px solid #333;
-}
-
-.hidden{
-  display:none;
-}
+.hidden{ display:none; }
+.item{ border-bottom:1px solid #333; padding:10px 0; }
 </style>
 </head>
 
@@ -152,7 +145,6 @@ button{
     </div>
 
     <button id="saveBtn">儲存</button>
-
   </div>
 
   <div class="card">
@@ -174,16 +166,16 @@ button{
 
 <script>
 
-/* ================= CONFIG ================= */
+/* ===== CONFIG ===== */
 const KEY = "fuel";
 
-/* ================= 油價 ================= */
+/* ===== 油價 ===== */
 const priceMap = {
   "中油": { "92":29.2, "95":31.2, "98":33.2, "diesel":27.5 },
   "台塑": { "92":29.0, "95":31.0, "98":33.0, "diesel":27.3 }
 };
 
-/* ================= 元素 ================= */
+/* ===== 元素 ===== */
 const sourceEl = document.getElementById("source");
 const typeEl = document.getElementById("type");
 const priceEl = document.getElementById("price");
@@ -195,7 +187,7 @@ const tabHistory = document.getElementById("tabHistory");
 const recordPage = document.getElementById("recordPage");
 const historyPage = document.getElementById("historyPage");
 
-/* ================= 油價 ================= */
+/* ===== 油價自動 ===== */
 function updatePrice(){
   const s = sourceEl.value;
   const t = typeEl.value;
@@ -204,40 +196,37 @@ function updatePrice(){
   }
 }
 
-/* ================= DATA ================= */
+/* ===== DATA ===== */
 function getData(){
   return JSON.parse(localStorage.getItem(KEY)||"[]");
 }
-
-function saveData(data){
-  localStorage.setItem(KEY, JSON.stringify(data));
+function saveData(d){
+  localStorage.setItem(KEY, JSON.stringify(d));
 }
 
-/* ================= 計算 ================= */
+/* ===== 計算 ===== */
 function calc(last, now){
   if(!last) return {distance:0, eff:0};
-
   const distance = now.mileage - last.mileage;
   if(distance<=0) return {distance:0, eff:0};
-
   const liter = now.amount / now.price;
-  return {distance, eff: distance / liter};
+  return {distance, eff: distance/liter};
 }
 
-/* ================= UI ================= */
+/* ===== UI ===== */
 function updateUI(d,e){
-  document.getElementById("distance").innerText = d ? d.toFixed(0) : "--";
-  document.getElementById("efficiency").innerText = e ? e.toFixed(2) : "--";
+  distance.textContent = d ? d.toFixed(0) : "--";
+  efficiency.textContent = e ? e.toFixed(2) : "--";
 }
 
-/* ================= 圖表 ================= */
+/* ===== chart ===== */
 let chart;
 function drawChart(){
   const data = getData();
 
   if(chart) chart.destroy();
 
-  chart = new Chart(document.getElementById("chart"),{
+  chart = new Chart(chartEl,{
     type:"bar",
     data:{
       labels:data.map(d=>d.date),
@@ -247,8 +236,25 @@ function drawChart(){
   });
 }
 
-/* ================= SAVE ================= */
-document.getElementById("saveBtn").onclick = ()=>{
+const chartEl = document.getElementById("chart");
+
+/* ===== history ===== */
+function renderHistory(){
+  const list = document.getElementById("historyList");
+  list.innerHTML="";
+
+  const data = getData().slice().reverse();
+
+  data.forEach((d,i)=>{
+    const div = document.createElement("div");
+    div.className="item";
+    div.innerText = `${d.date} | ${d.mileage}km | ${d.eff?.toFixed(2)||"--"}`;
+    list.appendChild(div);
+  });
+}
+
+/* ===== SAVE ===== */
+saveBtn.onclick = ()=>{
 
   const amount = parseFloat(amountEl.value);
   const mileage = parseFloat(mileageEl.value);
@@ -279,19 +285,13 @@ document.getElementById("saveBtn").onclick = ()=>{
   updateUI(r.distance, r.eff);
   drawChart();
 
-  /* 清空金額 */
-  amountEl.value = "";
-
-  /* 帶入最新里程 */
+  amountEl.value="";
   mileageEl.value = record.mileage;
 
-  /* focus */
-  setTimeout(()=>{
-    amountEl.focus();
-  },50);
+  setTimeout(()=>amountEl.focus(),50);
 };
 
-/* ================= TABS ================= */
+/* ===== tabs ===== */
 tabRecord.onclick=()=>{
   tabRecord.classList.add("active");
   tabHistory.classList.remove("active");
@@ -304,9 +304,10 @@ tabHistory.onclick=()=>{
   tabRecord.classList.remove("active");
   recordPage.classList.add("hidden");
   historyPage.classList.remove("hidden");
+  renderHistory();
 };
 
-/* ================= INIT ================= */
+/* ===== INIT ===== */
 function init(){
   updatePrice();
   drawChart();
@@ -317,8 +318,8 @@ function init(){
   }
 }
 
-sourceEl.addEventListener("change", updatePrice);
-typeEl.addEventListener("change", updatePrice);
+sourceEl.onchange = updatePrice;
+typeEl.onchange = updatePrice;
 
 init();
 
