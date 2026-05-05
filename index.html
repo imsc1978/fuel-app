@@ -1,284 +1,317 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>加油紀錄</title>
 
 <style>
-body{margin:0;background:#000;color:#fff;font-family:sans-serif;}
-.container{padding:16px;max-width:500px;margin:auto;}
-.tabs{display:flex;gap:10px;margin-bottom:16px;}
-.tab{flex:1;padding:12px;border-radius:12px;text-align:center;background:#2c2c2e;}
-.active{background:#4facfe;}
-.card{background:#1c1c1e;padding:16px;border-radius:16px;margin-bottom:16px;}
-.row{display:flex;gap:10px;margin-bottom:10px;}
-.col{flex:1;}
-label{font-size:12px;color:#aaa;margin-bottom:4px;display:block;}
-input,select{
-  width:100%;padding:12px;border-radius:10px;border:none;
-  background:#2c2c2e;color:#fff;font-size:16px;box-sizing:border-box;
+body{
+  background:#000;
+  color:white;
+  font-family:sans-serif;
+  margin:0;
+  padding:20px;
 }
-button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe;color:#fff;}
-.hidden{display:none;}
-.item{padding:12px;border-bottom:1px solid #333;}
-.item:hover{background:#2c2c2e;}
+
+h1{
+  margin-bottom:20px;
+}
+
+.tabs{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+
+.tab{
+  flex:1;
+  padding:12px;
+  border-radius:12px;
+  background:#333;
+  text-align:center;
+}
+
+.tab.active{
+  background:#4da3ff;
+}
+
+.card{
+  background:#1c1c1e;
+  padding:16px;
+  border-radius:16px;
+  margin-bottom:20px;
+}
+
+.row{
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+input{
+  flex:1;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  background:#2c2c2e;
+  color:white;
+  font-size:16px;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:#4da3ff;
+  color:white;
+  font-size:16px;
+}
+
+.hidden{
+  display:none;
+}
+
+/* ===== 歷史 ===== */
+.history-item{
+  position:relative;
+  overflow:hidden;
+  border-radius:12px;
+  margin:10px 0;
+}
+
+.item-content{
+  background:#1c1c1e;
+  padding:16px;
+  transition:0.25s;
+}
+
+.delete-btn{
+  position:absolute;
+  right:0;
+  top:0;
+  bottom:0;
+  width:80px;
+  background:#ff3b30;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.history-item.show .item-content{
+  transform:translateX(-80px);
+}
+
+/* ===== ActionSheet ===== */
+.action-sheet{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  align-items:flex-end;
+}
+
+.sheet{
+  width:100%;
+  background:#111;
+  border-radius:16px 16px 0 0;
+  padding:12px;
+}
+
+.sheet button{
+  background:#222;
+  margin:6px 0;
+}
 </style>
 </head>
 
 <body>
-<div class="container">
 
-<h2>⛽ 加油紀錄</h2>
+<h1>⛽ 加油紀錄</h1>
 
 <div class="tabs">
-<div id="tabRecord" class="tab active">紀錄</div>
-<div id="tabHistory" class="tab">歷史</div>
+  <div id="tabRecord" class="tab active">紀錄</div>
+  <div id="tabHistory" class="tab">歷史</div>
 </div>
 
-<!-- 記錄頁 -->
-<div id="recordPage">
+<!-- ===== 紀錄頁 ===== -->
+<div id="recordPage" class="card">
 
-<div class="card">
+  <div class="row">
+    <input id="amount" type="number" placeholder="金額">
+    <input id="km" type="number" placeholder="總里程">
+  </div>
 
-<div class="row">
-<div class="col">
-<label>油種</label>
-<select id="type">
-<option>92</option>
-<option selected>95</option>
-<option>98</option>
-<option>柴油</option>
-</select>
-</div>
-
-<div class="col">
-<label>油價</label>
-<input id="price">
-</div>
-</div>
-
-<div class="row">
-<div class="col">
-<label>金額</label>
-<input id="amount">
-</div>
-
-<div class="col">
-<label>總里程</label>
-<input id="km">
-</div>
-</div>
-
-<button onclick="save()">儲存</button>
+  <button onclick="saveRecord()">儲存</button>
 
 </div>
 
-<div class="card" id="result">-</div>
-<div class="card"><canvas id="chart"></canvas></div>
-
-</div>
-
-<!-- 歷史 -->
-<div id="historyPage" class="hidden">
-<div class="card" id="historyList"></div>
-</div>
-
+<!-- ===== 歷史頁 ===== -->
+<div id="historyPage" class="card hidden">
+  <div id="historyList"></div>
 </div>
 
 <script>
+const KEY="fuel"
 
-/* ===== 資料層 ===== */
-function loadData(){
-  let d = JSON.parse(localStorage.getItem("fuel")||"[]")
-  return d.filter(i => i && !isNaN(i.km))
-}
-function saveData(){
-  localStorage.setItem("fuel",JSON.stringify(data))
-}
+// ===== TAB =====
+const tabRecord=document.getElementById("tabRecord")
+const tabHistory=document.getElementById("tabHistory")
+const recordPage=document.getElementById("recordPage")
+const historyPage=document.getElementById("historyPage")
 
-let data = loadData()
-
-/* ===== 油價 ===== */
-const priceMap={92:30,95:31.2,98:33,柴油:28}
-type.onchange=()=>price.value=priceMap[type.value]
-price.value=priceMap[type.value]
-
-/* ===== tab ===== */
 tabRecord.onclick=()=>{
   recordPage.classList.remove("hidden")
   historyPage.classList.add("hidden")
+  tabRecord.classList.add("active")
+  tabHistory.classList.remove("active")
 }
+
 tabHistory.onclick=()=>{
   recordPage.classList.add("hidden")
   historyPage.classList.remove("hidden")
+  tabHistory.classList.add("active")
+  tabRecord.classList.remove("active")
   renderHistory()
 }
 
-/* ===== 自動帶入里程 ===== */
-function preloadKm(){
-  if(data.length){
-    km.value = data[data.length-1].km
-  }
+// ===== 資料 =====
+function load(){
+  return JSON.parse(localStorage.getItem(KEY)||"[]")
 }
 
-/* ===== 核心重算 ===== */
-function recalc(){
-
-  for(let i=0;i<data.length;i++){
-
-    if(i===0){
-      data[i].distance=0
-      data[i].avg=0
-      continue
-    }
-
-    const prev=data[i-1]
-    const curr=data[i]
-
-    const distance = curr.km - prev.km
-    const liter = curr.amount / curr.price
-
-    curr.distance = distance>0?distance:0
-    curr.avg = liter>0?distance/liter:0
-  }
+function save(data){
+  localStorage.setItem(KEY,JSON.stringify(data))
 }
 
-/* ===== 儲存 ===== */
-function save(){
+// ===== 儲存 =====
+function saveRecord(){
 
-  const amountVal=parseFloat(amount.value)
-  const kmVal=parseFloat(km.value)
-  const priceVal=parseFloat(price.value)
+  const amount=Number(document.getElementById("amount").value)
+  const km=Number(document.getElementById("km").value)
 
-  if(!amountVal || !kmVal){
-    alert("請輸入完整")
-    return
-  }
+  if(!amount||!km) return alert("請輸入完整")
 
-  if(data.length && kmVal <= data[data.length-1].km){
-    alert("里程需大於上一筆")
-    return
-  }
+  const data=load()
 
   data.push({
-    date:new Date().toISOString().slice(0,10),
-    km:kmVal,
-    amount:amountVal,
-    price:priceVal
+    id:Date.now()+"_"+Math.random(),
+    amount,
+    km,
+    time:Date.now(),
+    date:new Date().toISOString().slice(0,10)
   })
 
-  recalc()
-  saveData()
+  save(data)
 
-  preloadKm()
-  update()
+  document.getElementById("amount").value=""
+  document.getElementById("km").value=""
+
+  alert("已儲存")
 }
 
-/* ===== 更新 ===== */
-function update(){
-
-  if(data.length<2){
-    result.innerHTML="距離：-- km<br>油耗：-- km/L"
-    return
-  }
-
-  const last=data[data.length-1]
-
-  result.innerHTML=
-  `距離：${last.distance.toFixed(0)} km<br>
-   油耗：${last.avg.toFixed(2)} km/L`
-
-  drawChart()
-}
-
-/* ===== 歷史（最新→舊 + 編輯刪除） ===== */
+// ===== 歷史 =====
 function renderHistory(){
 
-  const reversed=[...data].reverse()
+  const list=document.getElementById("historyList")
+  const data=load().sort((a,b)=>b.time-a.time)
 
-  historyList.innerHTML=reversed.map((item,i)=>{
+  list.innerHTML=""
 
-    const realIndex=data.length-1-i
+  data.forEach(item=>{
 
-    return `
-      <div class="item" onclick="editItem(${realIndex})">
+    const div=document.createElement("div")
+    div.className="history-item"
+
+    div.innerHTML=`
+      <div class="delete-btn">刪除</div>
+      <div class="item-content">
         ${item.date} | ${item.km} km
       </div>
     `
-  }).join("")
-}
 
-function editItem(index){
+    const content=div.querySelector(".item-content")
+    const del=div.querySelector(".delete-btn")
 
-  const item=data[index]
+    let startX=0
 
-  const action=prompt("1 修改\n2 刪除","1")
-
-  if(action==="2"){
-    if(confirm("確定刪除？")){
-      data.splice(index,1)
-    }
-  }
-
-  if(action==="1"){
-
-    const newKm=prompt("修改里程",item.km)
-    if(newKm===null) return
-
-    const newAmount=prompt("修改金額",item.amount)
-    if(newAmount===null) return
-
-    item.km=parseFloat(newKm)
-    item.amount=parseFloat(newAmount)
-  }
-
-  recalc()
-  saveData()
-  renderHistory()
-  update()
-}
-
-/* ===== 圖表 ===== */
-let chart
-
-function drawChart(){
-
-  if(chart) chart.destroy()
-
-  const grouped={}
-
-  data.forEach(i=>{
-    if(!grouped[i.date]) grouped[i.date]=[]
-    grouped[i.date].push(i.avg)
-  })
-
-  const labels=Object.keys(grouped)
-  const max=Math.max(...Object.values(grouped).map(a=>a.length))
-
-  const datasets=[]
-
-  for(let i=0;i<max;i++){
-    datasets.push({
-      data:labels.map(d=>grouped[d][i]||0),
-      backgroundColor:`hsl(${i*70},70%,60%)`,
-      stack:"a"
+    content.addEventListener("touchstart",e=>{
+      startX=e.touches[0].clientX
     })
-  }
 
-  chart=new Chart(document.getElementById("chart"),{
-    type:"bar",
-    data:{labels,datasets},
-    options:{
-      plugins:{legend:false},
-      scales:{x:{stacked:true},y:{stacked:true}}
-    }
+    content.addEventListener("touchmove",e=>{
+      let diff=e.touches[0].clientX-startX
+
+      if(diff<-30) div.classList.add("show")
+      if(diff>30) div.classList.remove("show")
+    })
+
+    content.onclick=()=>openSheet(item.id)
+    del.onclick=()=>remove(item.id)
+
+    list.appendChild(div)
   })
 }
 
-/* ===== init ===== */
-preloadKm()
-update()
+// ===== 刪除 =====
+function remove(id){
+  let data=load()
+  data=data.filter(i=>i.id!==id)
+  save(data)
+  renderHistory()
+}
 
+// ===== 操作選單 =====
+function openSheet(id){
+
+  const sheet=document.createElement("div")
+  sheet.className="action-sheet"
+
+  sheet.innerHTML=`
+    <div class="sheet">
+      <button onclick="editKm('${id}')">修改里程</button>
+      <button onclick="editAmount('${id}')">修改金額</button>
+      <button onclick="closeSheet()">取消</button>
+    </div>
+  `
+
+  document.body.appendChild(sheet)
+}
+
+function closeSheet(){
+  document.querySelector(".action-sheet")?.remove()
+}
+
+// ===== 編輯 =====
+function editKm(id){
+  closeSheet()
+
+  const data=load()
+  const item=data.find(i=>i.id===id)
+
+  let v=prompt("里程",item.km)
+  if(v===null) return
+
+  item.km=Number(v)
+  save(data)
+  renderHistory()
+}
+
+function editAmount(id){
+  closeSheet()
+
+  const data=load()
+  const item=data.find(i=>i.id===id)
+
+  let v=prompt("金額",item.amount)
+  if(v===null) return
+
+  item.amount=Number(v)
+  save(data)
+  renderHistory()
+}
 </script>
 
 </body>
