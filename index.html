@@ -5,93 +5,27 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:sans-serif;
-}
-
-.container{
-  padding:16px;
-  max-width:500px;
-  margin:auto;
-}
-
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:16px;
-}
-
-.tab{
-  flex:1;
-  padding:12px;
-  border-radius:12px;
-  text-align:center;
-  background:#2c2c2e;
-}
-
-.active{
-  background:#4facfe;
-}
-
-.card{
-  background:#1c1c1e;
-  padding:16px;
-  border-radius:16px;
-  margin-bottom:16px;
-}
-
-.row{
-  display:flex;
-  gap:10px;
-  margin-bottom:10px;
-}
-
-.col{
-  flex:1;
-}
-
-label{
-  font-size:12px;
-  color:#aaa;
-  margin-bottom:4px;
-  display:block;
-}
-
+body{margin:0;background:#000;color:#fff;font-family:sans-serif;}
+.container{padding:16px;max-width:500px;margin:auto;}
+.tabs{display:flex;gap:10px;margin-bottom:16px;}
+.tab{flex:1;padding:12px;border-radius:12px;text-align:center;background:#2c2c2e;}
+.active{background:#4facfe;}
+.card{background:#1c1c1e;padding:16px;border-radius:16px;margin-bottom:16px;}
+.row{display:flex;gap:10px;margin-bottom:10px;}
+.col{flex:1;}
+label{font-size:12px;color:#aaa;margin-bottom:4px;display:block;}
 input,select{
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  background:#2c2c2e;
-  color:#fff;
-  font-size:16px;
-  box-sizing:border-box;
+  width:100%;padding:12px;border-radius:10px;border:none;
+  background:#2c2c2e;color:#fff;font-size:16px;box-sizing:border-box;
 }
-
-button{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  background:#4facfe;
-  color:#fff;
-  font-size:16px;
-}
-
-.hidden{display:none}
-
-.item{
-  padding:10px 0;
-  border-bottom:1px solid #333;
-}
+button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe;color:#fff;}
+.hidden{display:none;}
+.item{padding:12px;border-bottom:1px solid #333;}
+.item:hover{background:#2c2c2e;}
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
 <h2>⛽ 加油紀錄</h2>
@@ -101,20 +35,12 @@ button{
 <div id="tabHistory" class="tab">歷史</div>
 </div>
 
-<!-- ===== 記錄頁 ===== -->
+<!-- 記錄 -->
 <div id="recordPage">
 
 <div class="card">
 
 <div class="row">
-<div class="col">
-<label>油品來源</label>
-<select id="source">
-<option>中油</option>
-<option>台塑</option>
-</select>
-</div>
-
 <div class="col">
 <label>油種</label>
 <select id="type">
@@ -148,14 +74,11 @@ button{
 </div>
 
 <div class="card" id="result">-</div>
-
-<div class="card">
-<canvas id="chart"></canvas>
-</div>
+<div class="card"><canvas id="chart"></canvas></div>
 
 </div>
 
-<!-- ===== 歷史 ===== -->
+<!-- 歷史 -->
 <div id="historyPage" class="hidden">
 <div class="card" id="historyList"></div>
 </div>
@@ -164,33 +87,58 @@ button{
 
 <script>
 
-let data = JSON.parse(localStorage.getItem("fuel")||"[]")
-
-/* ===== tab ===== */
-tabRecord.onclick=()=>{
-  recordPage.classList.remove("hidden")
-  historyPage.classList.add("hidden")
-  tabRecord.classList.add("active")
-  tabHistory.classList.remove("active")
+/* ===== 安全資料層 ===== */
+function loadData(){
+  let d = JSON.parse(localStorage.getItem("fuel")||"[]")
+  return d.filter(i => i.km && !isNaN(i.km))
 }
 
-tabHistory.onclick=()=>{
-  recordPage.classList.add("hidden")
-  historyPage.classList.remove("hidden")
-  tabRecord.classList.remove("active")
-  tabHistory.classList.add("active")
-  renderHistory()
+function saveData(d){
+  localStorage.setItem("fuel",JSON.stringify(d))
 }
+
+let data = loadData()
 
 /* ===== 油價 ===== */
 const priceMap={92:30,95:31.2,98:33,柴油:28}
 type.onchange=()=>price.value=priceMap[type.value]
 price.value=priceMap[type.value]
 
+/* ===== tab ===== */
+tabRecord.onclick=()=>{
+  recordPage.classList.remove("hidden")
+  historyPage.classList.add("hidden")
+}
+tabHistory.onclick=()=>{
+  recordPage.classList.add("hidden")
+  historyPage.classList.remove("hidden")
+  renderHistory()
+}
+
 /* ===== 自動帶入里程 ===== */
 function preloadKm(){
-  if(data.length){
-    km.value = data[data.length-1].km
+  if(data.length) km.value = data[data.length-1].km
+}
+
+/* ===== 重算核心（最重要） ===== */
+function recalc(){
+
+  for(let i=0;i<data.length;i++){
+
+    if(i===0){
+      data[i].distance=0
+      data[i].avg=0
+      continue
+    }
+
+    const prev=data[i-1]
+    const curr=data[i]
+
+    const distance = curr.km - prev.km
+    const liter = curr.amount / curr.price
+
+    curr.distance = distance>0?distance:0
+    curr.avg = liter>0?distance/liter:0
   }
 }
 
@@ -201,36 +149,17 @@ function save(){
   const kmVal=parseFloat(km.value)
   const priceVal=parseFloat(price.value)
 
-  if(!amountVal || !kmVal){
-    alert("請輸入完整")
-    return
-  }
+  if(!amountVal || !kmVal) return alert("請輸入完整")
 
-  const last=data[data.length-1]
-
-  let distance=0
-
-  if(last){
-    distance = kmVal - last.km
-
-    if(distance <= 0){
-      alert("里程需大於上一筆")
-      return
-    }
-  }
-
-  const liter = amountVal / priceVal
-  const avg = distance / liter
-
-  const item={
+  data.push({
     date:new Date().toISOString().slice(0,10),
     km:kmVal,
-    distance,
-    avg
-  }
+    amount:amountVal,
+    price:priceVal
+  })
 
-  data.push(item)
-  localStorage.setItem("fuel",JSON.stringify(data))
+  recalc()
+  saveData(data)
 
   preloadKm()
   update()
@@ -239,8 +168,8 @@ function save(){
 /* ===== 更新 ===== */
 function update(){
 
-  if(data.length < 2){
-    result.innerHTML="距離：-- km<br>油耗：-- km/L"
+  if(data.length<2){
+    result.innerHTML="距離：--<br>油耗：--"
     return
   }
 
@@ -253,63 +182,71 @@ function update(){
   drawChart()
 }
 
-/* ===== 歷史 ===== */
+/* ===== 歷史（含編輯刪除） ===== */
 function renderHistory(){
-  historyList.innerHTML=data.map(i=>
-    `<div class="item">${i.date} | ${i.km} km</div>`
-  ).join("")
+
+  historyList.innerHTML=data.map((i,index)=>
+  `<div class="item" onclick="edit(${index})">
+    ${i.date} | ${i.km} km
+  </div>`).join("")
 }
 
-/* ===== 圖表（週 + 堆疊） ===== */
+function edit(index){
+
+  const item=data[index]
+
+  const newKm=prompt("修改里程",item.km)
+  if(newKm===null) return
+
+  const newAmount=prompt("修改金額",item.amount)
+  if(newAmount===null) return
+
+  if(confirm("確定刪除？")){
+    data.splice(index,1)
+  }else{
+    item.km=parseFloat(newKm)
+    item.amount=parseFloat(newAmount)
+  }
+
+  recalc()
+  saveData(data)
+  renderHistory()
+  update()
+}
+
+/* ===== 圖表 ===== */
 let chart
-
-function getWeek(){
-  const now=new Date()
-  const day=now.getDay()||7
-  const monday=new Date(now)
-  monday.setDate(now.getDate()-day+1)
-
-  return Array.from({length:7},(_,i)=>{
-    const d=new Date(monday)
-    d.setDate(monday.getDate()+i)
-    return d.toISOString().slice(0,10)
-  })
-}
 
 function drawChart(){
 
   if(chart) chart.destroy()
 
-  const week=getWeek()
-
   const grouped={}
-  week.forEach(d=>grouped[d]=[])
 
   data.forEach(i=>{
-    if(grouped[i.date]) grouped[i.date].push(i.avg)
+    if(!grouped[i.date]) grouped[i.date]=[]
+    grouped[i.date].push(i.avg)
   })
 
+  const labels=Object.keys(grouped)
   const max=Math.max(...Object.values(grouped).map(a=>a.length))
 
   const datasets=[]
 
   for(let i=0;i<max;i++){
     datasets.push({
-      data:week.map(d=>grouped[d][i]||0),
+      data:labels.map(d=>grouped[d][i]||0),
       backgroundColor:`hsl(${i*70},70%,60%)`,
       stack:"a"
     })
   }
 
-  chart=new Chart(document.getElementById("chart"),{
+  chart=new Chart(chart,{
     type:"bar",
-    data:{labels:week.map(d=>d.slice(5)),datasets},
+    data:{labels,datasets},
     options:{
       plugins:{legend:false},
-      scales:{
-        x:{stacked:true},
-        y:{stacked:true}
-      }
+      scales:{x:{stacked:true},y:{stacked:true}}
     }
   })
 }
