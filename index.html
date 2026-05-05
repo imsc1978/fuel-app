@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>油耗管理</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -68,7 +68,7 @@ body{
   margin-top:10px;
 }
 
-/* Input group */
+/* Label */
 .group{
   display:flex;
   flex-direction:column;
@@ -80,7 +80,7 @@ label{
   color:#aaa;
 }
 
-/* Input */
+/* Input（🔥重點：16px 防縮放） */
 input,select{
   width:100%;
   min-width:0;
@@ -89,6 +89,7 @@ input,select{
   border:none;
   background:#2c2c2e;
   color:#fff;
+  font-size:16px; /* 🔥關鍵 */
 }
 
 /* Button */
@@ -122,6 +123,7 @@ button{
 .chart-wrap{
   height:220px;
 }
+
 canvas{
   width:100%!important;
   height:100%!important;
@@ -203,24 +205,26 @@ canvas{
 
 <script>
 
-let priceMap={
-  "中油":{"92":30.2,"95":31.2,"98":33.2,"diesel":28},
-  "台塑":{"92":30,"95":31,"98":33,"diesel":27.8}
-}
+const mainPage = document.getElementById("main")
+const historyPage = document.getElementById("history")
 
 let records=JSON.parse(localStorage.getItem("fuel")||"[]")
 let chart=null
 
-const sourceEl=document.getElementById("source")
-const typeEl=document.getElementById("type")
-const priceEl=document.getElementById("price")
+function switchTab(tab){
 
-function updatePrice(){
-  priceEl.value=priceMap[sourceEl.value][typeEl.value]
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
+
+  if(tab==="main"){
+    mainPage.classList.remove("hidden")
+    historyPage.classList.add("hidden")
+    document.querySelectorAll(".tab")[0].classList.add("active")
+  }else{
+    historyPage.classList.remove("hidden")
+    mainPage.classList.add("hidden")
+    document.querySelectorAll(".tab")[1].classList.add("active")
+  }
 }
-sourceEl.onchange=updatePrice
-typeEl.onchange=updatePrice
-updatePrice()
 
 function today(){
   let d=new Date()
@@ -231,7 +235,6 @@ function save(){
 
   let amount=parseFloat(amount.value)
   let km=parseFloat(document.getElementById("km").value)
-  let price=parseFloat(priceEl.value)
 
   if(!amount || !km){
     alert("請輸入資料")
@@ -246,7 +249,7 @@ function save(){
   }
 
   let dist=last?km-last.km:null
-  let kmpl=dist?dist/(amount/price):null
+  let kmpl=dist?dist/(amount/31.2):null
 
   records.push({
     date:today(),
@@ -257,6 +260,7 @@ function save(){
   localStorage.setItem("fuel",JSON.stringify(records))
 
   amount.value=""
+
   render()
 }
 
@@ -287,9 +291,8 @@ function renderHistory(){
 
   records.slice().reverse().forEach((r,i)=>{
     html+=`
-      <div class="item" onclick="loadRecord(${records.length-1-i})">
-        📅 ${r.date}<br>
-        里程：${r.km} km
+      <div class="item">
+        📅 ${r.date}｜${r.km} km
       </div>
     `
   })
@@ -297,78 +300,9 @@ function renderHistory(){
   document.getElementById("historyList").innerHTML=html
 }
 
-function loadRecord(i){
-  let r=records[i]
-  document.getElementById("km").value=r.km
-  switchTab('main')
-}
-
-function switchTab(tab){
-
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
-
-  if(tab==="main"){
-    main.classList.remove("hidden")
-    history.classList.add("hidden")
-    document.querySelectorAll(".tab")[0].classList.add("active")
-  }else{
-    history.classList.remove("hidden")
-    main.classList.add("hidden")
-    document.querySelectorAll(".tab")[1].classList.add("active")
-  }
-}
-
-function getWeek(){
-  let arr=[]
-  for(let i=6;i>=0;i--){
-    let d=new Date()
-    d.setDate(d.getDate()-i)
-    let key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
-    let label=(d.getMonth()+1)+"/"+d.getDate()
-    arr.push({key,label})
-  }
-  return arr
-}
-
 function drawChart(){
 
-  let week=getWeek()
-  let map={}
+  let labels=records.map(r=>r.date)
+  let data=records.map(r=>r.kmpl||0)
 
-  records.forEach(r=>{
-    if(!r.kmpl) return
-    if(!map[r.date]) map[r.date]=[]
-    map[r.date].push(r.kmpl)
-  })
-
-  let labels=[]
-  let data=[]
-
-  week.forEach(d=>{
-    labels.push(d.label)
-    if(map[d.key]){
-      let avg=map[d.key].reduce((a,b)=>a+b,0)/map[d.key].length
-      data.push(avg)
-    }else{
-      data.push(0)
-    }
-  })
-
-  if(chart) chart.destroy()
-
-  chart=new Chart(document.getElementById("chart"),{
-    type:"bar",
-    data:{labels,datasets:[{data}]},
-    options:{
-      plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true}}
-    }
-  })
-}
-
-render()
-
-</script>
-
-</body>
-</html>
+  if(chart)
