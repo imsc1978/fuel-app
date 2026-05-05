@@ -29,7 +29,6 @@ body{
 .row{
   display:flex;
   gap:12px;
-  margin-bottom:12px;
 }
 
 .field{
@@ -45,8 +44,9 @@ body{
 
 input,select{
   width:100%;
+  box-sizing:border-box;
   padding:14px;
-  font-size:16px; /* 防iOS放大 */
+  font-size:16px;
   border:none;
   border-radius:10px;
   background:#2c2c2e;
@@ -61,6 +61,7 @@ button{
   background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
   font-size:16px;
+  margin-top:12px;
 }
 
 .tab{
@@ -123,7 +124,7 @@ button{
   </div>
 </div>
 
-<div class="row">
+<div class="row" style="margin-top:12px;">
   <div class="field">
     <div class="label">金額</div>
     <input id="amountInput" type="number">
@@ -160,13 +161,21 @@ button{
 
 let records = JSON.parse(localStorage.getItem("fuel")||"[]")
 
-// 🔥 修正舊日期格式
+// 🔥 台灣時間日期
+function getToday(){
+  const now = new Date()
+  const tzOffset = now.getTimezoneOffset() * 60000
+  const local = new Date(now - tzOffset)
+  return local.toISOString().slice(0,10)
+}
+
+// 🔥 修正舊資料
 records = records.map(r=>{
-  if(r.date.includes("/")){
-    const d = new Date(r.date)
-    r.date = d.toISOString().slice(0,10)
+  const d = new Date(r.date)
+  return {
+    ...r,
+    date: new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10)
   }
-  return r
 })
 
 const priceMap={
@@ -208,7 +217,7 @@ function save(){
   }
 
   records.push({
-    date: new Date().toISOString().slice(0,10),
+    date: getToday(),
     km,
     kmpl
   })
