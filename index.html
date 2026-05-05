@@ -6,201 +6,279 @@
 
 <title>油耗管理</title>
 
+<!-- PWA -->
+<link rel="apple-touch-icon" href="/icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont;
-    background: #000;
-    color: #fff;
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:-apple-system;
 }
 
-.app {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 16px;
+.container{
+  max-width:420px;
+  margin:auto;
+  padding:20px;
 }
 
-/* 卡片 /
-.card {
-    background: #1c1c1e;
-    border-radius: 16px;
-    padding: 16px;
-    margin-bottom: 16px;
+h1{
+  font-size:22px;
+  margin-bottom:15px;
 }
 
-/ 標題 /
-.title {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 16px;
+.card{
+  background:#1c1c1e;
+  border-radius:16px;
+  padding:15px;
+  margin-bottom:15px;
 }
 
-/ 🔥 三欄 /
-.row-3 {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+.row{
+  display:flex;
+  gap:10px;
 }
 
-.row-3 select,
-.row-3 input {
-    flex: 1;
+input, select{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  background:#2c2c2e;
+  color:#fff;
+  font-size:16px;
 }
 
-/ 🔥 兩欄 /
-.row-2 {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:linear-gradient(90deg,#0ea5e9,#2563eb);
+  color:#fff;
+  font-size:16px;
 }
 
-.row-2 input {
-    flex: 1;
+.stat{
+  font-size:28px;
+  font-weight:bold;
 }
 
-/ 輸入 /
-input, select {
-    width: 100%;
-    padding: 14px;
-    border-radius: 12px;
-    border: none;
-    background: #2c2c2e;
-    color: #fff;
-    font-size: 16px;
+.small{
+  color:#aaa;
+  font-size:14px;
 }
 
-/ 按鈕 /
-button {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    color: #fff;
-    background: linear-gradient(90deg,#00c6ff,#0072ff);
-}
-
-/ 資訊 */
-.stat {
-    font-size: 20px;
-    margin-top: 10px;
+.pull{
+  text-align:center;
+  font-size:12px;
+  color:#aaa;
 }
 </style>
 </head>
 
 <body>
 
-<div class="app">
+<div class="container">
 
-<div class="title">⛽ 加油紀錄</div>
+<div class="pull">⬇ 下拉重新整理</div>
+
+<h1>⛽ 加油紀錄</h1>
 
 <div class="card">
 
-    <!-- 🔥 三欄 -->
-    <div class="row-3">
-        <select id="source">
-            <option>中油</option>
-            <option>台塑</option>
-        </select>
+<div class="row">
+<select id="brand">
+<option>中油</option>
+<option>台塑</option>
+</select>
 
-        <select id="type">
-            <option value="92">92</option>
-            <option value="95" selected>95</option>
-            <option value="98">98</option>
-            <option value="diesel">柴油</option>
-        </select>
+<select id="type">
+<option value="92">92</option>
+<option value="95" selected>95</option>
+<option value="98">98</option>
+<option value="diesel">柴油</option>
+</select>
 
-        <input id="price" type="number" value="31.2" step="0.1">
-    </div>
+<input id="price" type="number" value="31.2">
+</div>
 
-    <!-- 🔥 兩欄 -->
-    <div class="row-2">
-        <input id="money" type="number" placeholder="輸入金額" inputmode="numeric">
-        <input id="mileage" type="number" placeholder="輸入里程" inputmode="numeric">
-    </div>
+<br>
 
-    <button onclick="save()">儲存</button>
+<div class="row">
+<input id="amount" type="number" placeholder="輸入金額">
+<input id="km" type="number" placeholder="輸入里程">
+</div>
+
+<br>
+
+<button onclick="save()">儲存</button>
 
 </div>
 
 <div class="card">
-    <div>距離：<span id="distance">0</span> km</div>
-    <div>油耗：<span id="km">-</span> km/L</div>
+<div class="small">距離</div>
+<div class="stat" id="distance">0 km</div>
+
+<div class="small">平均油耗</div>
+<div class="stat" id="avg">- km/L</div>
 </div>
 
 <div class="card">
-    <canvas id="chart"></canvas>
+<canvas id="chart"></canvas>
 </div>
 
 </div>
 
 <script>
-let records = JSON.parse(localStorage.getItem("fuel") || "[]");
 
-function save() {
-    let money = Number(document.getElementById("money").value);
-    let mileage = Number(document.getElementById("mileage").value);
-    let price = Number(document.getElementById("price").value);
+let records = JSON.parse(localStorage.getItem("fuel")||"[]")
 
-    if (!money || !mileage) return;
+let lastKm = localStorage.getItem("lastKm")||""
+document.getElementById("km").value = lastKm
 
-    records.push({
-        money,
-        mileage,
-        price,
-        date: new Date().toISOString()
-    });
+function save(){
 
-    localStorage.setItem("fuel", JSON.stringify(records));
+let amount = Number(amountEl.value)
+let km = Number(kmEl.value)
+let price = Number(priceEl.value)
 
-    document.getElementById("money").value = "";
-    render();
+if(!amount || !km) return
+
+let last = records.length ? records[records.length-1].km : km
+let dist = km - last
+let liter = amount / price
+let kmpl = dist / liter
+
+let today = new Date().toISOString().slice(0,10)
+
+records.push({
+date:today,
+km,
+amount,
+price,
+kmpl
+})
+
+localStorage.setItem("fuel",JSON.stringify(records))
+localStorage.setItem("lastKm",km)
+
+render()
 }
 
-function render() {
-    if (records.length < 2) return;
+const amountEl = document.getElementById("amount")
+const kmEl = document.getElementById("km")
+const priceEl = document.getElementById("price")
 
-    let last = records[records.length - 1];
-    let prev = records[records.length - 2];
+function getWeek(){
 
-    let distance = last.mileage - prev.mileage;
-    let liter = last.money / last.price;
-    let km = distance / liter;
+let days = []
+let now = new Date()
 
-    document.getElementById("distance").innerText = distance;
-    document.getElementById("km").innerText = km.toFixed(2);
+let start = new Date(now)
+start.setDate(now.getDate()-now.getDay())
 
-    drawChart();
+for(let i=0;i<7;i++){
+let d = new Date(start)
+d.setDate(start.getDate()+i)
+
+let label = "日一二三四五六"[d.getDay()]
++" ("+(d.getMonth()+1)+"/"+d.getDate()+")"
+
+let key = d.toISOString().slice(0,10)
+
+days.push({label,key})
 }
 
-function drawChart() {
-    let labels = [];
-    let data = [];
-
-    for (let i = 1; i < records.length; i++) {
-        let d = new Date(records[i].date);
-        labels.push((d.getMonth()+1) + "/" + d.getDate());
-
-        let dist = records[i].mileage - records[i-1].mileage;
-        let liter = records[i].money / records[i].price;
-        data.push((dist / liter).toFixed(2));
-    }
-
-    new Chart(document.getElementById("chart"), {
-        type: "bar",
-        data: {
-            labels,
-            datasets: [{
-                label: "km/L",
-                data
-            }]
-        }
-    });
+return days
 }
 
-render();
+function render(){
+
+if(!records.length) return
+
+let last = records[records.length-1]
+
+document.getElementById("distance").innerText =
+(records.length>1 ? last.km-records[records.length-2].km : 0)+" km"
+
+document.getElementById("avg").innerText =
+last.kmpl.toFixed(2)+" km/L"
+
+let week = getWeek()
+
+let map = {}
+
+records.forEach(r=>{
+if(!map[r.date]) map[r.date]={dist:0,liter:0}
+map[r.date].dist += r.km
+map[r.date].liter += r.amount/r.price
+})
+
+let labels = []
+let data = []
+
+week.forEach(d=>{
+labels.push(d.label)
+
+if(map[d.key]){
+data.push(map[d.key].dist/map[d.key].liter)
+}else{
+data.push(0)
+}
+})
+
+let avg = data.filter(x=>x).reduce((a,b)=>a+b,0)/data.filter(x=>x).length||0
+
+new Chart(document.getElementById("chart"),{
+type:"bar",
+data:{
+labels,
+datasets:[{
+label:"km/L",
+data,
+backgroundColor:"#3b82f6"
+}]
+},
+options:{
+plugins:{
+legend:{display:false},
+title:{
+display:true,
+text:"平均油耗 "+avg.toFixed(2)+" km/L",
+align:"end",
+color:"#fff"
+}
+},
+scales:{
+x:{ticks:{color:"#aaa"}},
+y:{ticks:{color:"#aaa"}}
+}
+}
+})
+
+}
+
+render()
+
+// 下拉重整
+let startY=0
+window.addEventListener("touchstart",e=>{
+startY = e.touches[0].clientY
+})
+
+window.addEventListener("touchend",e=>{
+let endY = e.changedTouches[0].clientY
+if(endY-startY>120){
+location.reload()
+}
+})
+
 </script>
 
 </body>
