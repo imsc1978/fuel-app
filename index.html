@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>加油紀錄</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -48,7 +48,7 @@ body{
   margin-bottom:16px;
 }
 
-/* form */
+/* grid */
 .grid{
   display:grid;
   grid-template-columns:1fr 1fr 1fr;
@@ -62,21 +62,10 @@ body{
 }
 
 label{
-  display:block;
   font-size:13px;
   color:#aaa;
   margin-bottom:4px;
-}
-
-button{
-  width:100%;
-  padding:14px;
-  margin-top:12px;
-  border:none;
-  border-radius:12px;
-  background:#4da3ff;
-  color:#fff;
-  font-size:16px;
+  display:block;
 }
 
 input, select{
@@ -87,7 +76,6 @@ input, select{
   background:#2c2c2e;
   color:#fff;
   font-size:16px;
-  box-sizing:border-box;
 }
 
 button{
@@ -101,13 +89,11 @@ button{
   font-size:16px;
 }
 
-/* history */
 .item{
   padding:12px 0;
   border-bottom:1px solid #333;
 }
 
-/* hidden */
 .hidden{
   display:none;
 }
@@ -126,16 +112,13 @@ button{
   <div id="tabHistory" class="tab">歷史</div>
 </div>
 
-<!-- =========================
-📥 RECORD PAGE
-========================= -->
+<!-- ================= RECORD ================= -->
 <div id="recordPage">
 
   <div class="card">
 
-    <!-- 第一排：油品 -->
+    <!-- 第一排 -->
     <div class="grid">
-
       <div>
         <label>油品來源</label>
         <select id="source">
@@ -157,12 +140,10 @@ button{
         <label>油價</label>
         <input id="price" type="number" placeholder="油價">
       </div>
-
     </div>
 
-    <!-- 第二排：數值 -->
+    <!-- 第二排 -->
     <div class="grid-2">
-
       <div>
         <label>金額</label>
         <input id="amount" type="number" placeholder="金額">
@@ -172,14 +153,13 @@ button{
         <label>總里程</label>
         <input id="mileage" type="number" placeholder="總里程">
       </div>
-
     </div>
 
     <button id="saveBtn">儲存</button>
 
   </div>
 
-  <!-- 計算結果 -->
+  <!-- 結果 -->
   <div class="card">
     距離：<span id="distance">--</span> km<br>
     油耗：<span id="efficiency">--</span> km/L
@@ -191,44 +171,8 @@ button{
   </div>
 
 </div>
-// 油價對照表（你可以自己改）
-const priceMap = {
-  "中油": {
-    "92": 29.2,
-    "95": 31.2,
-    "98": 33.2
-  },
-  "台塑": {
-    "92": 29.0,
-    "95": 31.0,
-    "98": 33.0
-  }
-};
 
-// 取得元素
-const sourceEl = document.getElementById("source");
-const typeEl = document.getElementById("type");
-const priceEl = document.getElementById("price");
-
-/* 更新油價 */
-function updatePrice(){
-  const source = sourceEl.value;
-  const type = typeEl.value;
-
-  if(priceMap[source] && priceMap[source][type]){
-    priceEl.value = priceMap[source][type];
-  }
-}
-
-/* 綁定事件 */
-sourceEl.addEventListener("change", updatePrice);
-typeEl.addEventListener("change", updatePrice);
-
-/* 預設跑一次 */
-updatePrice();
-<!-- =========================
-📜 HISTORY PAGE
-========================= -->
+<!-- ================= HISTORY ================= -->
 <div id="historyPage" class="hidden">
   <div id="historyList" class="card"></div>
 </div>
@@ -237,14 +181,32 @@ updatePrice();
 
 <script>
 
-/* =========================
-⚙️ CONFIG
-========================= */
+/* ================= CONFIG ================= */
 const KEY = "fuel";
 
-/* =========================
-💾 DATA
-========================= */
+/* ================= 油價對照 ================= */
+const priceMap = {
+  "中油": {"92":29.2,"95":31.2,"98":33.2},
+  "台塑": {"92":29.0,"95":31.0,"98":33.0}
+};
+
+/* ================= 元素 ================= */
+const sourceEl = document.getElementById("source");
+const typeEl = document.getElementById("type");
+const priceEl = document.getElementById("price");
+const amountEl = document.getElementById("amount");
+const mileageEl = document.getElementById("mileage");
+
+/* ================= 油價自動帶入 ================= */
+function updatePrice(){
+  const s = sourceEl.value;
+  const t = typeEl.value;
+  if(priceMap[s] && priceMap[s][t]){
+    priceEl.value = priceMap[s][t];
+  }
+}
+
+/* ================= DATA ================= */
 function getData(){
   return JSON.parse(localStorage.getItem(KEY)||"[]");
 }
@@ -253,46 +215,27 @@ function saveData(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
-/* =========================
-🧮 CALC
-========================= */
+/* ================= CALC ================= */
 function calc(last, now){
   if(!last) return {distance:0, eff:0};
 
   const distance = now.mileage - last.mileage;
-
-  if(distance<=0 || !now.amount){
-    return {distance:0, eff:0};
-  }
+  if(distance<=0 || !now.amount || !now.price) return {distance:0, eff:0};
 
   const liter = now.amount / now.price;
-  if(liter===0) return {distance:0, eff:0};
-
-  return {
-    distance,
-    eff: distance / liter
-  };
+  return {distance, eff: distance / liter};
 }
 
-/* =========================
-🎨 UI
-========================= */
-function updateUI(d, e){
-  document.getElementById("distance").innerText =
-    d ? d.toFixed(0) : "--";
-
-  document.getElementById("efficiency").innerText =
-    e ? e.toFixed(2) : "--";
+/* ================= UI ================= */
+function updateUI(d,e){
+  document.getElementById("distance").innerText = d ? d.toFixed(0) : "--";
+  document.getElementById("efficiency").innerText = e ? e.toFixed(2) : "--";
 }
 
-/* =========================
-📊 CHART
-========================= */
+/* ================= CHART ================= */
 let chart;
-
 function drawChart(){
   const data = getData();
-
   const labels = data.map(d=>d.date);
   const values = data.map(d=>d.eff||0);
 
@@ -302,16 +245,15 @@ function drawChart(){
     type:"bar",
     data:{
       labels,
-      datasets:[{
-        data:values
-      }]
+      datasets:[{data:values}]
+    },
+    options:{
+      plugins:{legend:{display:false}}
     }
   });
 }
 
-/* =========================
-📜 HISTORY
-========================= */
+/* ================= HISTORY ================= */
 function renderHistory(){
   const list = document.getElementById("historyList");
   list.innerHTML="";
@@ -321,13 +263,13 @@ function renderHistory(){
   data.forEach((d,i)=>{
     const div = document.createElement("div");
     div.className="item";
-    div.innerText = `${d.date} | ${d.mileage} km`;
+    div.innerText = `${d.date} | ${d.mileage} km | ${d.eff?.toFixed(2)||"--"}`;
 
     div.onclick = ()=>{
       if(!confirm("刪除這筆？")) return;
 
       const origin = getData();
-      origin.splice(origin.length-1-i,1);
+      origin.splice(origin.length-1-i,1); // index安全
       saveData(origin);
       renderHistory();
       drawChart();
@@ -337,16 +279,14 @@ function renderHistory(){
   });
 }
 
-/* =========================
-🖱️ EVENT
-========================= */
-
+/* ================= SAVE ================= */
 document.getElementById("saveBtn").onclick = ()=>{
 
   const amount = parseFloat(amountEl.value);
   const mileage = parseFloat(mileageEl.value);
+  const price = parseFloat(priceEl.value);
 
-  if(!amount || !mileage){
+  if(!amount || !mileage || !price){
     alert("請輸入完整");
     return;
   }
@@ -358,32 +298,27 @@ document.getElementById("saveBtn").onclick = ()=>{
     date:new Date().toISOString().slice(0,10),
     amount,
     mileage,
-    price:30
+    price
   };
 
-  const result = calc(last, record);
-
-  record.distance = result.distance;
-  record.eff = result.eff;
+  const r = calc(last, record);
+  record.distance = r.distance;
+  record.eff = r.eff;
 
   data.push(record);
   saveData(data);
 
-  updateUI(result.distance, result.eff);
+  updateUI(r.distance, r.eff);
   drawChart();
 
   amountEl.value="";
   mileageEl.value="";
 };
 
-/* tabs */
-const tabRecord = document.getElementById("tabRecord");
-const tabHistory = document.getElementById("tabHistory");
-
+/* ================= TABS ================= */
 tabRecord.onclick=()=>{
   tabRecord.classList.add("active");
   tabHistory.classList.remove("active");
-
   recordPage.classList.remove("hidden");
   historyPage.classList.add("hidden");
 };
@@ -391,29 +326,25 @@ tabRecord.onclick=()=>{
 tabHistory.onclick=()=>{
   tabHistory.classList.add("active");
   tabRecord.classList.remove("active");
-
   recordPage.classList.add("hidden");
   historyPage.classList.remove("hidden");
-
   renderHistory();
 };
 
-/* =========================
-🚀 INIT
-========================= */
-
-const amountEl = document.getElementById("amount");
-const mileageEl = document.getElementById("mileage");
-
+/* ================= INIT ================= */
 function init(){
-  const data = getData();
+  updatePrice();
+  drawChart();
 
+  const data = getData();
   if(data.length){
     mileageEl.value = data[data.length-1].mileage;
   }
-
-  drawChart();
 }
+
+/* 只綁一次 */
+sourceEl.addEventListener("change", updatePrice);
+typeEl.addEventListener("change", updatePrice);
 
 init();
 
