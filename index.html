@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta charset="UTF-8">
-<title>加油紀錄</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -17,10 +15,8 @@ body{
 
 .container{
   padding:16px;
-}
-
-h1{
-  font-size:28px;
+  max-width:500px;
+  margin:auto;
 }
 
 .card{
@@ -32,18 +28,18 @@ h1{
 
 .row{
   display:flex;
-  gap:10px;
-  margin-bottom:10px;
+  gap:8px;
+  flex-wrap:wrap;
 }
 
 input,select{
   flex:1;
-  padding:14px;
+  min-width:0;
+  padding:12px;
   border:none;
   border-radius:10px;
   background:#2c2c2e;
   color:#fff;
-  font-size:16px;
 }
 
 button{
@@ -53,19 +49,11 @@ button{
   border-radius:12px;
   background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
-  font-size:18px;
-}
-
-.label{
-  font-size:14px;
-  color:#aaa;
-  margin-bottom:4px;
 }
 
 .tab{
   display:flex;
   gap:10px;
-  margin-top:10px;
 }
 
 .tab button{
@@ -73,8 +61,8 @@ button{
   background:#2c2c2e;
 }
 
-.tab .active{
-  background:#3b6cff;
+.active{
+  background:#3b6cff!important;
 }
 
 .hidden{
@@ -87,44 +75,30 @@ button{
 
 <div class="container">
 
-<h1>⛽ 加油紀錄</h1>
+<h2>⛽ 加油紀錄</h2>
 
 <div class="tab">
   <button id="tabRecord" class="active">紀錄</button>
   <button id="tabHistory">歷史</button>
 </div>
 
-<!-- 紀錄 -->
 <div id="recordPage">
 
 <div class="card">
 
 <div class="row">
-  <select id="source">
-    <option>中油</option>
-    <option>台塑</option>
-  </select>
-
   <select id="fuel">
     <option value="92">92</option>
     <option value="95" selected>95</option>
     <option value="98">98</option>
-    <option value="diesel">柴油</option>
   </select>
 
-  <input id="price" type="number">
+  <input id="priceInput" type="number">
 </div>
 
 <div class="row">
-  <div style="flex:1">
-    <div class="label">金額</div>
-    <input id="amount" type="number" inputmode="decimal">
-  </div>
-
-  <div style="flex:1">
-    <div class="label">總里程</div>
-    <input id="km" type="number" inputmode="numeric">
-  </div>
+  <input id="amountInput" placeholder="金額" type="number">
+  <input id="kmInput" placeholder="總里程" type="number">
 </div>
 
 <button onclick="save()">儲存</button>
@@ -142,7 +116,6 @@ button{
 
 </div>
 
-<!-- 歷史 -->
 <div id="historyPage" class="hidden">
   <div class="card" id="historyList"></div>
 </div>
@@ -150,72 +123,70 @@ button{
 </div>
 
 <script>
-let records = JSON.parse(localStorage.getItem("fuelRecords")||"[]")
+
+let records = JSON.parse(localStorage.getItem("fuel")||"[]")
 let chart
 
-// 🔥 油價表
 const priceMap={
   "92":29.2,
   "95":31.2,
-  "98":33.2,
-  "diesel":27.5
+  "98":33.2
 }
 
-// 自動油價
-document.getElementById("fuel").onchange=e=>{
-  document.getElementById("price").value=priceMap[e.target.value]
+const fuel = document.getElementById("fuel")
+const priceInput = document.getElementById("priceInput")
+const amountInput = document.getElementById("amountInput")
+const kmInput = document.getElementById("kmInput")
+
+fuel.onchange = ()=>{
+  priceInput.value = priceMap[fuel.value]
 }
 
-// 初始化
-document.getElementById("price").value=31.2
+priceInput.value = 31.2
 
 function save(){
 
-  const price = parseFloat(price.value)
-  const amount = parseFloat(amount.value)
-  const kmVal = parseFloat(km.value)
+  const price = parseFloat(priceInput.value)
+  const amount = parseFloat(amountInput.value)
+  const km = parseFloat(kmInput.value)
 
-  if(!price || !amount || !kmVal){
+  if(!price || !amount || !km){
     alert("請填完整")
     return
   }
 
-  if(records.length>0){
-    const last = records[records.length-1].km
-    if(kmVal < last){
-      alert("里程不能小於上一筆")
+  if(records.length){
+    if(km < records[records.length-1].km){
+      alert("里程錯誤")
       return
     }
   }
 
   const liter = amount / price
 
-  let distance = 0
   let kmpl = 0
 
-  if(records.length>0){
+  if(records.length){
     const last = records[records.length-1].km
-    distance = kmVal - last
-    kmpl = distance / liter
+    kmpl = (km - last) / liter
   }
 
   records.push({
-    date: new Date().toISOString().slice(0,10),
-    km: kmVal,
-    kmpl: kmpl
+    date:new Date().toISOString().slice(0,10),
+    km,
+    kmpl
   })
 
-  localStorage.setItem("fuelRecords",JSON.stringify(records))
+  localStorage.setItem("fuel",JSON.stringify(records))
 
   update()
   drawChart()
   renderHistory()
 
-  amount.value=""
+  amountInput.value=""
 }
 
 function update(){
-
   if(records.length<2){
     distance.innerText="-"
     kmpl.innerText="-"
@@ -225,18 +196,15 @@ function update(){
   const last = records[records.length-1]
   const prev = records[records.length-2]
 
-  const d = last.km - prev.km
-
-  distance.innerText = d
+  distance.innerText = last.km - prev.km
   kmpl.innerText = last.kmpl.toFixed(2)
 }
 
-// 🔥 重點：堆疊圖（同一天一柱）
 function drawChart(){
 
   if(chart) chart.destroy()
 
-  if(records.length===0) return
+  if(!records.length) return
 
   const grouped={}
 
@@ -245,27 +213,28 @@ function drawChart(){
     grouped[r.date].push(r)
   })
 
-  const dates=Object.keys(grouped)
+  const dates = Object.keys(grouped)
 
-  const maxCount = Math.max(...dates.map(d=>grouped[d].length))
+  const max = Math.max(...dates.map(d=>grouped[d].length))
 
   const datasets=[]
 
-  for(let i=0;i<maxCount;i++){
+  for(let i=0;i<max;i++){
     datasets.push({
       data: dates.map(d=>grouped[d][i]?.kmpl || 0),
-      backgroundColor:`hsl(${i*60},70%,60%)`
+      backgroundColor:`hsl(${i*70},70%,60%)`
     })
   }
 
-  chart = new Chart(chartCanvas,{
+  const ctx = document.getElementById("chart")
+
+  chart = new Chart(ctx,{
     type:"bar",
     data:{
       labels:dates,
       datasets
     },
     options:{
-      plugins:{legend:{display:false}},
       scales:{
         x:{stacked:true},
         y:{stacked:true}
@@ -274,14 +243,12 @@ function drawChart(){
   })
 }
 
-// 歷史
 function renderHistory(){
   historyList.innerHTML = records.map(r=>`
     <div>${r.date} | ${r.km} km</div>
   `).join("<hr>")
 }
 
-// 切換頁
 tabRecord.onclick=()=>{
   recordPage.classList.remove("hidden")
   historyPage.classList.add("hidden")
@@ -296,10 +263,10 @@ tabHistory.onclick=()=>{
   tabRecord.classList.remove("active")
 }
 
-// init
 update()
 drawChart()
 renderHistory()
+
 </script>
 
 </body>
