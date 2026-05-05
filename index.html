@@ -257,17 +257,68 @@ function drawChart(){
   // ===== 4️⃣ 建立 stack datasets（每筆一個顏色）=====
   const datasets = [];
 
-  labels.forEach(date=>{
-    const items = dateMap[date];
+/* ===== 1️⃣ 加油量（柱狀） ===== */
+labels.forEach(date=>{
+  const items = dateMap[date];
 
-    items.forEach(item=>{
-      datasets.push({
-        data: labels.map(d => d === date ? (item.eff || 0) : 0),
-        backgroundColor: `hsl(${Math.random()*360},70%,60%)`,
-        stack: "fuel"
-      });
+  items.forEach((item, index)=>{
+    const liter = item.amount / item.price;
+
+    datasets.push({
+      type: "bar",
+      data: labels.map(d => d===date ? liter : 0),
+      backgroundColor: `hsl(${(index*60)%360},70%,60%)`,
+      stack: "fuel"
     });
   });
+});
+
+/* ===== 2️⃣ 油耗平均（折線） ===== */
+const effList = data.map(d=>d.eff).filter(v=>v);
+
+let runningAvg = [];
+let sum = 0;
+
+effList.forEach((v,i)=>{
+  sum += v;
+  runningAvg.push(sum/(i+1));
+});
+
+datasets.push({
+  type:"line",
+  data: labels.map((_,i)=> runningAvg[i] || null),
+  borderColor:"#fff",
+  borderWidth:2,
+  tension:0.3,
+  yAxisID:"y1"
+});
+
+/* ===== 3️⃣ 建立圖表 ===== */
+chart = new Chart(chartEL,{
+  data:{
+    labels,
+    datasets
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:false}
+    },
+    scales:{
+      x:{stacked:true},
+      y:{
+        stacked:true,
+        title:{display:true,text:"加油量(L)"}
+      },
+      y1:{
+        position:"right",
+        grid:{drawOnChartArea:false},
+        title:{display:true,text:"km/L"}
+      }
+    }
+  },
+  plugins:[totalLabelPlugin],
+});
 
   // ===== 5️⃣ 建立圖表 =====
   chart = new Chart(chartEl,{
