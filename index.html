@@ -10,39 +10,19 @@
 
 <style>
 *{box-sizing:border-box;}
-
-body{
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:sans-serif;
-  padding:16px;
-}
-
-h2{margin-bottom:16px;}
-
-.card{
-  background:#1c1c1e;
-  padding:16px;
-  border-radius:18px;
-  margin-bottom:16px;
-}
-
+body{margin:0;background:#000;color:#fff;font-family:sans-serif;padding:16px;}
+.card{background:#1c1c1e;padding:16px;border-radius:18px;margin-bottom:16px;}
 .row{display:grid;gap:10px;}
 .row-3{grid-template-columns:repeat(3,1fr);}
 .row-2{grid-template-columns:repeat(2,1fr);}
-
 input,select{
   width:100%;
-  min-width:0;
   padding:12px;
   border-radius:10px;
   border:none;
   background:#2c2c2e;
   color:#fff;
-  font-size:16px;
 }
-
 button{
   width:100%;
   padding:14px;
@@ -50,13 +30,8 @@ button{
   border-radius:12px;
   background:linear-gradient(90deg,#1ea9ff,#2f6bff);
   color:#fff;
-  font-size:16px;
 }
-
-canvas{
-  width:100%;
-  height:220px;
-}
+canvas{height:220px;}
 </style>
 </head>
 
@@ -79,16 +54,15 @@ canvas{
       <option value="diesel">柴油</option>
     </select>
 
-    <input id="price" type="number" step="0.1">
+    <input id="price">
   </div>
 
   <div class="row row-2" style="margin-top:10px;">
-    <input id="amount" placeholder="金額" type="number" inputmode="decimal">
-    <input id="km" placeholder="總里程" type="number" inputmode="numeric">
+    <input id="amount" placeholder="金額" inputmode="decimal">
+    <input id="km" placeholder="總里程" inputmode="numeric">
   </div>
 
-  <button style="margin-top:12px;" onclick="save()">儲存</button>
-
+  <button onclick="save()">儲存</button>
 </div>
 
 <div class="card">
@@ -123,10 +97,9 @@ sourceEl.onchange=updatePrice
 typeEl.onchange=updatePrice
 updatePrice()
 
-// ⭐ 本地時間（修圖表BUG關鍵）
-function getToday(){
+function today(){
   let d=new Date()
-  return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
 }
 
 function save(){
@@ -140,25 +113,18 @@ function save(){
     return
   }
 
-  let last = records.length ? records[records.length-1] : null
+  let last=records.at(-1)
 
   if(last && kmVal <= last.km){
     alert("里程不能小於上一筆")
     return
   }
 
-  let today = getToday()
-
-  let dist=null
-  let kmpl=null
-
-  if(last){
-    dist = kmVal - last.km
-    kmpl = dist / (amount / price)
-  }
+  let dist = last ? kmVal-last.km : null
+  let kmpl = dist ? dist/(amount/price) : null
 
   records.push({
-    date:today,
+    date:today(),
     km:kmVal,
     kmpl:kmpl
   })
@@ -172,17 +138,12 @@ function save(){
 
 function render(){
 
-  if(records.length<2){
-    distance.innerText="-"
-    kmpl.innerText="-"
-  }else{
+  if(records.length>=2){
     let last=records.at(-1)
     let prev=records.at(-2)
 
-    let dist=last.km-prev.km
-
-    distance.innerText=dist
-    kmpl.innerText=last.kmpl.toFixed(2)
+    distance.innerText = last.km-prev.km
+    kmpl.innerText = last.kmpl.toFixed(2)
   }
 
   if(records.length){
@@ -192,8 +153,7 @@ function render(){
   drawChart()
 }
 
-// ⭐ 這裡也修（本地時間）
-function getLast7Days(){
+function getWeek(){
 
   let arr=[]
 
@@ -201,7 +161,7 @@ function getLast7Days(){
     let d=new Date()
     d.setDate(d.getDate()-i)
 
-    let key=`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`
+    let key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
     let label=(d.getMonth()+1)+"/"+d.getDate()
 
     arr.push({key,label})
@@ -212,17 +172,31 @@ function getLast7Days(){
 
 function drawChart(){
 
-  let week=getLast7Days()
+  let week=getWeek()
+
+  // 🔥 先整理資料（同一天合併）
+  let map={}
+
+  records.forEach(r=>{
+    if(!r.kmpl) return
+    if(!map[r.date]){
+      map[r.date]=[]
+    }
+    map[r.date].push(r.kmpl)
+  })
 
   let labels=[]
   let data=[]
 
-  week.forEach(day=>{
-    labels.push(day.label)
+  week.forEach(d=>{
+    labels.push(d.label)
 
-    let found=records.find(r=>r.date===day.key)
-
-    data.push(found && found.kmpl ? found.kmpl : 0)
+    if(map[d.key]){
+      let avg = map[d.key].reduce((a,b)=>a+b,0)/map[d.key].length
+      data.push(avg)
+    }else{
+      data.push(0)
+    }
   })
 
   if(chartInstance){
