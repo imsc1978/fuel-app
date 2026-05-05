@@ -226,13 +226,67 @@ function drawChart(){
 
   if(chart) chart.destroy();
 
+  // ⭐ 1. 取得「本週星期一」
+  const now = new Date();
+  const day = now.getDay(); // 0=日
+  const monday = new Date(now);
+  const diff = (day === 0 ? -6 : 1 - day);
+  monday.setDate(now.getDate() + diff);
+
+  // ⭐ 2. 建立一週 labels
+  const labels = [];
+  const dateMap = {};
+
+  for(let i=0;i<7;i++){
+    const d = new Date(monday);
+    d.setDate(monday.getDate()+i);
+
+    const key = d.toISOString().slice(5,10); // MM-DD
+    labels.push(key);
+    dateMap[key] = [];
+  }
+
+  // ⭐ 3. 分類資料（同一天分組）
+  data.forEach(d=>{
+    const key = d.date.slice(5,10);
+    if(dateMap[key]){
+      dateMap[key].push(d);
+    }
+  });
+
+  // ⭐ 4. 轉成「stack datasets」（每筆一個顏色）
+  const datasets = [];
+
+  labels.forEach(date=>{
+    const items = dateMap[date];
+
+    items.forEach((item, index)=>{
+      datasets.push({
+        label: `${date}-${index}`,
+        data: labels.map(d => d===date ? (item.eff || 0) : 0),
+        backgroundColor: `hsl(${Math.random()*360},70%,60%)`,
+        stack: "fuel" // ⭐ 關鍵：堆疊
+      });
+    });
+  });
+
+  // ⭐ 5. 建立圖表
   chart = new Chart(chartEl,{
     type:"bar",
     data:{
-      labels:data.map(d=>d.date),
-      datasets:[{data:data.map(d=>d.eff||0)}]
+      labels,
+      datasets
     },
-    options:{plugins:{legend:{display:false}}}
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:false}
+      },
+      scales:{
+        x:{stacked:true},
+        y:{stacked:true}
+      }
+    }
   });
 }
 
