@@ -12,36 +12,29 @@ body{
   color:#fff;
   font-family:-apple-system;
 }
-
 .container{
   padding:16px;
   max-width:500px;
   margin:auto;
 }
-
 .card{
   background:#1c1c1e;
   border-radius:16px;
   padding:16px;
   margin-top:16px;
 }
-
 .row{
   display:flex;
   gap:8px;
-  flex-wrap:wrap;
 }
-
 input,select{
   flex:1;
-  min-width:0;
   padding:12px;
   border:none;
   border-radius:10px;
   background:#2c2c2e;
   color:#fff;
 }
-
 button{
   width:100%;
   padding:14px;
@@ -50,21 +43,17 @@ button{
   background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
 }
-
 .tab{
   display:flex;
   gap:10px;
 }
-
 .tab button{
   flex:1;
   background:#2c2c2e;
 }
-
 .active{
   background:#3b6cff!important;
 }
-
 .hidden{
   display:none;
 }
@@ -87,6 +76,11 @@ button{
 <div class="card">
 
 <div class="row">
+  <select id="source">
+    <option>中油</option>
+    <option>台塑</option>
+  </select>
+
   <select id="fuel">
     <option value="92">92</option>
     <option value="95" selected>95</option>
@@ -141,7 +135,6 @@ const kmInput = document.getElementById("kmInput")
 fuel.onchange = ()=>{
   priceInput.value = priceMap[fuel.value]
 }
-
 priceInput.value = 31.2
 
 function save(){
@@ -157,7 +150,7 @@ function save(){
 
   if(records.length){
     if(km < records[records.length-1].km){
-      alert("里程錯誤")
+      alert("里程不能倒退")
       return
     }
   }
@@ -165,14 +158,13 @@ function save(){
   const liter = amount / price
 
   let kmpl = 0
-
   if(records.length){
     const last = records[records.length-1].km
     kmpl = (km - last) / liter
   }
 
   records.push({
-    date:new Date().toISOString().slice(0,10),
+    date: new Date().toISOString().slice(0,10), // 🔥 統一格式
     km,
     kmpl
   })
@@ -200,41 +192,46 @@ function update(){
   kmpl.innerText = last.kmpl.toFixed(2)
 }
 
+// 🔥 真正堆疊版本（修正版）
 function drawChart(){
 
   if(chart) chart.destroy()
-
   if(!records.length) return
 
-  const grouped={}
+  const grouped = {}
 
   records.forEach(r=>{
-    if(!grouped[r.date]) grouped[r.date]=[]
-    grouped[r.date].push(r)
+    const d = r.date
+    if(!grouped[d]) grouped[d] = []
+    grouped[d].push(r)
   })
 
-  const dates = Object.keys(grouped)
+  const dates = Object.keys(grouped).sort()
 
   const max = Math.max(...dates.map(d=>grouped[d].length))
 
-  const datasets=[]
+  const datasets = []
 
   for(let i=0;i<max;i++){
     datasets.push({
-      data: dates.map(d=>grouped[d][i]?.kmpl || 0),
-      backgroundColor:`hsl(${i*70},70%,60%)`
+      label: `第${i+1}次`,
+      data: dates.map(d=>{
+        return grouped[d][i] ? grouped[d][i].kmpl : null
+      }),
+      backgroundColor:`hsl(${i*60},70%,60%)`
     })
   }
 
-  const ctx = document.getElementById("chart")
-
-  chart = new Chart(ctx,{
+  chart = new Chart(document.getElementById("chart"),{
     type:"bar",
     data:{
       labels:dates,
       datasets
     },
     options:{
+      plugins:{
+        legend:{labels:{color:"#aaa"}}
+      },
       scales:{
         x:{stacked:true},
         y:{stacked:true}
