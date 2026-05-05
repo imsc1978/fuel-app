@@ -330,7 +330,10 @@ amountEl.value = "";
 amountEl.focus();
 
 /* ⭐ 最後才設里程（避免干擾輸入） */
-mileageEl.value = record.mileage;
+const latest = getData().slice(-1)[0];
+if(latest){
+  mileageEl.value = latest.mileage;
+}
 };
 
 /* ================= TABS ================= */
