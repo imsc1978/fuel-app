@@ -1,118 +1,34 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<title>加油紀錄</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:sans-serif;
-}
-
-.container{
-  padding:20px;
-}
-
-.card{
-  background:#1c1c1e;
-  padding:16px;
-  border-radius:16px;
-  margin-bottom:20px;
-}
-
-/* 三欄 */
-.row3{
-  display:flex;
-  gap:10px;
-}
-
-.row3 > *{
-  flex:1;
-}
-
-/* 兩欄 */
-.row2{
-  display:flex;
-  gap:10px;
-  margin-top:10px;
-}
-
-.row2 > *{
-  flex:1;
-}
-
-input,select{
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  background:#2c2c2e;
-  color:#fff;
-  font-size:16px;
-  box-sizing:border-box;
-}
-
-button{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  background:linear-gradient(90deg,#4facfe,#3f5efb);
-  color:#fff;
-  font-size:18px;
-  margin-top:12px;
-}
-
-.tab{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
-}
-
-.tab button{
-  flex:1;
-  background:#2c2c2e;
-}
-
-.active{
-  background:#3f5efb !important;
-}
-
-.hidden{
-  display:none;
-}
+body{background:#000;color:#fff;font-family:sans-serif;margin:0;padding:20px}
+.card{background:#1c1c1e;padding:16px;border-radius:16px;margin-bottom:20px}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+input,select{padding:12px;border:none;border-radius:10px;background:#2c2c2e;color:#fff}
+button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe;color:#fff;margin-top:10px}
+.hidden{display:none}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-
 <h2>⛽ 加油紀錄</h2>
 
-<div class="tab">
-<button id="tabRecord" class="active">紀錄</button>
-<button id="tabHistory">歷史</button>
+<div>
+<button onclick="showRecord()">紀錄</button>
+<button onclick="showHistory()">歷史</button>
 </div>
 
 <div id="recordPage">
 
 <div class="card">
 
-<div class="row3">
-<select id="source">
-<option>中油</option>
-<option>台塑</option>
-</select>
-
+<div class="row">
 <select id="type">
 <option>92</option>
 <option selected>95</option>
@@ -120,21 +36,19 @@ button{
 <option>柴油</option>
 </select>
 
-<input id="price" type="number" inputmode="decimal" placeholder="油價">
+<input id="price" placeholder="油價">
 </div>
 
-<div class="row2">
-<input id="amount" type="number" inputmode="decimal" placeholder="金額">
-<input id="km" type="number" inputmode="numeric" placeholder="總里程">
+<div class="row">
+<input id="amount" placeholder="金額">
+<input id="km" placeholder="里程">
 </div>
 
 <button onclick="save()">儲存</button>
 
 </div>
 
-<div class="card">
-<div id="result">距離：- km<br>油耗：- km/L</div>
-</div>
+<div class="card" id="result">-</div>
 
 <div class="card">
 <canvas id="chart"></canvas>
@@ -146,158 +60,124 @@ button{
 <div class="card" id="history"></div>
 </div>
 
-</div>
-
 <script>
 
-/* ===== 自動油價 ===== */
+let data = JSON.parse(localStorage.getItem("fuel")||"[]")
 
 function autoPrice(){
-  const type = document.getElementById("type").value
-
-  const priceMap = {
-    "92":30,
-    "95":31.2,
-    "98":33,
-    "柴油":28
-  }
-
-  document.getElementById("price").value = priceMap[type] || ""
+  const map={92:30,95:31.2,98:33,柴油:28}
+  price.value=map[type.value]
 }
-
-document.getElementById("type").onchange = autoPrice
+type.onchange=autoPrice
 autoPrice()
-
-/* ===== 資料 ===== */
-
-let data = JSON.parse(localStorage.getItem("fuel") || "[]")
 
 function save(){
 
-  const amount = parseFloat(amountEl.value)
-  const km = parseFloat(kmEl.value)
-  const price = parseFloat(priceEl.value)
+  const amount=parseFloat(amount.value)
+  const kmVal=parseFloat(km.value)
+  const priceVal=parseFloat(price.value)
 
-  if(!amount || !km || !price){
-    alert("請輸入完整")
-    return
-  }
+  if(!amount||!kmVal||!priceVal)return alert("輸入完整")
 
-  const last = data[data.length-1]
+  const last=data[data.length-1]
 
-  let distance = 0
+  let distance=0
   if(last){
-    distance = km - last.km
-    if(distance < 0){
-      alert("里程不能比上一筆小")
-      return
-    }
+    distance=kmVal-last.km
+    if(distance<0)return alert("里程錯誤")
   }
 
-  const liter = amount / price
-  const avg = distance && liter ? distance / liter : 0
+  const liter=amount/priceVal
+  const avg=distance>0?distance/liter:0
 
-  const item = {
-    date: new Date().toISOString().slice(0,10),
-    km,
-    avg,
-    distance
+  const item={
+    date:new Date().toISOString().slice(0,10),
+    km:kmVal,
+    avg:isFinite(avg)?avg:0,
+    distance:isFinite(distance)?distance:0
   }
 
   data.push(item)
-  localStorage.setItem("fuel", JSON.stringify(data))
+  localStorage.setItem("fuel",JSON.stringify(data))
 
   update()
 }
 
-const amountEl = document.getElementById("amount")
-const kmEl = document.getElementById("km")
-const priceEl = document.getElementById("price")
-
 function update(){
 
-  const last = data[data.length-1]
+  const last=data[data.length-1]
 
   if(!last){
-    result.innerHTML="距離：- km<br>油耗：- km/L"
+    result.innerHTML="-"
     return
   }
 
-  result.innerHTML =
-    `距離：${last.distance} km<br>油耗：${last.avg.toFixed(2)} km/L`
+  result.innerHTML=`距離:${last.distance}km<br>油耗:${last.avg.toFixed(2)}`
 
   renderHistory()
   drawChart()
 }
 
-/* ===== 歷史 ===== */
-
 function renderHistory(){
   history.innerHTML=""
+
+  if(!data.length){
+    history.innerHTML="沒有資料"
+    return
+  }
+
   data.slice().reverse().forEach(i=>{
-    history.innerHTML += `<div>${i.date} | ${i.km} km</div><hr>`
+    history.innerHTML+=`${i.date} | ${i.km}km<hr>`
   })
 }
-
-/* ===== 圖表 ===== */
 
 let chart
 
 function drawChart(){
 
-  if(chart) chart.destroy()
+  if(chart)chart.destroy()
 
-  const labels = [...new Set(data.map(i=>i.date))]
+  if(!data.length)return
 
-  const grouped = {}
-
-  labels.forEach(d=>grouped[d]=[])
+  const map={}
 
   data.forEach(i=>{
-    grouped[i.date].push(i.avg)
+    if(!map[i.date])map[i.date]=[]
+    map[i.date].push(i.avg)
   })
 
-  const datasets = []
+  const labels=Object.keys(map)
 
-  const max = Math.max(...Object.values(grouped).map(a=>a.length),1)
+  const max=Math.max(...Object.values(map).map(a=>a.length))
+
+  const datasets=[]
 
   for(let i=0;i<max;i++){
     datasets.push({
-      data: labels.map(d=>grouped[d][i] || 0),
+      data:labels.map(d=>map[d][i]||0),
       backgroundColor:`hsl(${i*60},70%,60%)`,
       stack:"a"
     })
   }
 
-  chart = new Chart(chartEl,{
+  chart=new Chart(chartEl,{
     type:"bar",
     data:{labels,datasets},
     options:{
       plugins:{legend:false},
-      scales:{
-        x:{stacked:true},
-        y:{stacked:true}
-      }
+      scales:{x:{stacked:true},y:{stacked:true}}
     }
   })
 }
 
-const chartEl = document.getElementById("chart")
-
-/* ===== tab ===== */
-
-tabRecord.onclick=()=>{
+function showRecord(){
   recordPage.classList.remove("hidden")
   historyPage.classList.add("hidden")
-  tabRecord.classList.add("active")
-  tabHistory.classList.remove("active")
 }
 
-tabHistory.onclick=()=>{
+function showHistory(){
   recordPage.classList.add("hidden")
   historyPage.classList.remove("hidden")
-  tabHistory.classList.add("active")
-  tabRecord.classList.remove("active")
 }
 
 update()
