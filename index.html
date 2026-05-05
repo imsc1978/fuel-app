@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>油耗管理</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
     margin: 0;
@@ -13,29 +15,24 @@ body {
     color: #fff;
 }
 
-/* 標題 */
 .header {
     padding: 20px;
     font-size: 22px;
     font-weight: bold;
 }
 
-/* 卡片 */
 .card {
     background: #1c1c1e;
     margin: 12px;
     padding: 16px;
     border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
-/* 油價 */
 .price {
     color: #aaa;
     margin-bottom: 10px;
 }
 
-/* 輸入框 */
 input {
     width: 100%;
     padding: 14px;
@@ -45,10 +42,9 @@ input {
     background: #2c2c2e;
     color: white;
     font-size: 16px;
-    box-sizing: border-box; /* ⭐ 修正爆版 */
+    box-sizing: border-box;
 }
 
-/* 按鈕 */
 button {
     width: 100%;
     margin-top: 14px;
@@ -61,15 +57,9 @@ button {
     font-weight: bold;
 }
 
-/* 結果區 */
-.result {
-    margin-top: 10px;
-}
-
 .big-number {
     font-size: 34px;
     font-weight: bold;
-    margin-top: 6px;
 }
 
 .label {
@@ -77,11 +67,8 @@ button {
     margin-top: 10px;
 }
 
-/* 區塊標題 */
-.section-title {
-    font-size: 18px;
-    margin: 16px;
-    color: #4cd964;
+canvas {
+    margin: 10px;
 }
 </style>
 </head>
@@ -93,13 +80,13 @@ button {
 <div class="card">
     <div class="price">油價（中油95）：31.2 元/L</div>
 
-    <input id="amount" placeholder="輸入金額" inputmode="numeric">
-    <input id="mileage" placeholder="輸入里程" inputmode="numeric">
+    <input id="amount" placeholder="輸入金額">
+    <input id="mileage" placeholder="輸入里程">
 
     <button onclick="saveData()">儲存</button>
 </div>
 
-<div class="card result">
+<div class="card">
     <div class="label">行駛距離</div>
     <div class="big-number" id="distance">0 km</div>
 
@@ -107,24 +94,32 @@ button {
     <div class="big-number" id="efficiency">- km/L</div>
 </div>
 
-<div class="section-title">📊 本週油耗</div>
+<canvas id="chart"></canvas>
 
 <script>
 const price = 31.2;
 
-// ⭐ 讀取上次里程
 let lastMileage = localStorage.getItem("lastMileage");
 if (lastMileage !== null) {
     lastMileage = parseFloat(lastMileage);
-}
-
-// ⭐ 自動帶入
-if (lastMileage !== null) {
     document.getElementById("mileage").value = lastMileage;
 }
 
-// ⭐ 游標自動在金額
-document.getElementById("amount").focus();
+// ⭐ 讀取歷史資料
+let records = JSON.parse(localStorage.getItem("records") || "[]");
+
+const ctx = document.getElementById('chart').getContext('2d');
+
+let chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: records.map((r,i)=>`第${i+1}次`),
+        datasets: [{
+            label: 'km/L',
+            data: records,
+        }]
+    }
+});
 
 function saveData() {
     const amount = parseFloat(document.getElementById("amount").value);
@@ -139,15 +134,25 @@ function saveData() {
 
         document.getElementById("distance").innerText = distance + " km";
         document.getElementById("efficiency").innerText = efficiency.toFixed(2) + " km/L";
+
+        // ⭐ 存進紀錄
+        records.push(efficiency.toFixed(2));
+
+        localStorage.setItem("records", JSON.stringify(records));
+
+        updateChart();
     }
 
-    // ⭐ 存起來（關鍵）
     localStorage.setItem("lastMileage", mileage);
-
     lastMileage = mileage;
 
-    // ⭐ 清空金額（讓下一次更快輸入）
     document.getElementById("amount").value = "";
+}
+
+function updateChart() {
+    chart.data.labels = records.map((r,i)=>`第${i+1}次`);
+    chart.data.datasets[0].data = records;
+    chart.update();
 }
 </script>
 
