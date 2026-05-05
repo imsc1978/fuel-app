@@ -1,71 +1,62 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>加油紀錄</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body{
   margin:0;
   background:#000;
   color:#fff;
-  font-family:-apple-system;
+  font-family:-apple-system,sans-serif;
 }
-
 .container{
   padding:16px;
   max-width:500px;
   margin:auto;
 }
-
 .tabs{
   display:flex;
   gap:10px;
   margin-bottom:16px;
 }
-
 .tab{
   flex:1;
   padding:12px;
   border-radius:12px;
   text-align:center;
   background:#333;
+  cursor:pointer;
 }
-
 .tab.active{
   background:#4da3ff;
 }
-
 .card{
   background:#1c1c1e;
   padding:16px;
   border-radius:16px;
   margin-bottom:16px;
 }
-
 .grid{
   display:grid;
-  grid-template-columns:repeat(3, minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px;
 }
-
 .grid-2{
   display:grid;
-  grid-template-columns:repeat(2, minmax(0,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
 }
-
 label{
   font-size:13px;
   color:#aaa;
   margin-bottom:4px;
   display:block;
 }
-
-input, select{
+input,select{
   width:100%;
   min-width:0;
   padding:12px;
@@ -76,7 +67,6 @@ input, select{
   font-size:16px;
   box-sizing:border-box;
 }
-
 button{
   width:100%;
   padding:14px;
@@ -85,15 +75,15 @@ button{
   border-radius:12px;
   background:#4da3ff;
   color:#fff;
+  font-size:16px;
+  cursor:pointer;
 }
-
-.hidden{ display:none; }
-.item{ border-bottom:1px solid #333; padding:10px 0; }
+.hidden{display:none;}
+.item{border-bottom:1px solid #333;padding:10px 0;font-size:14px;}
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
 <h2>⛽ 加油紀錄</h2>
@@ -103,10 +93,11 @@ button{
   <div id="tabHistory" class="tab">歷史</div>
 </div>
 
+<!-- 紀錄頁 -->
+
 <div id="recordPage">
 
   <div class="card">
-
     <div class="grid">
       <div>
         <label>油品來源</label>
@@ -115,7 +106,6 @@ button{
           <option value="台塑">台塑</option>
         </select>
       </div>
-
       <div>
         <label>油種</label>
         <select id="type">
@@ -125,30 +115,31 @@ button{
           <option value="diesel">柴油</option>
         </select>
       </div>
-
       <div>
-        <label>油價</label>
-        <input id="price" type="number">
+        <label>油價 (元/L)</label>
+        <input id="price" type="number" step="0.1">
       </div>
     </div>
 
-    <div class="grid-2">
-      <div>
-        <label>金額</label>
-        <input id="amount" type="tel" inputmode="numeric">
-      </div>
+```
+<div class="grid-2" style="margin-top:10px">
+  <div>
+    <label>金額 (元)</label>
+    <input id="amount" type="tel" inputmode="numeric">
+  </div>
+  <div>
+    <label>總里程 (km)</label>
+    <input id="mileage" type="tel" inputmode="numeric">
+  </div>
+</div>
 
-      <div>
-        <label>總里程</label>
-        <input id="mileage" type="tel" inputmode="numeric">
-      </div>
-    </div>
+<button id="saveBtn">儲存</button>
+```
 
-    <button id="saveBtn">儲存</button>
   </div>
 
   <div class="card">
-    距離：<span id="distance">--</span> km<br>
+    距離：<span id="distance">--</span> km　
     油耗：<span id="efficiency">--</span> km/L
   </div>
 
@@ -158,36 +149,41 @@ button{
 
 </div>
 
+<!-- 歷史頁 -->
+
 <div id="historyPage" class="hidden">
   <div id="historyList" class="card"></div>
 </div>
 
-</div>
+</div><!-- /container -->
 
 <script>
 
 /* ===== CONFIG ===== */
 const KEY = "fuel";
 
-/* ===== 油價 ===== */
+/* ===== 油價（修正為 2026/05 中油凍漲版） ===== */
 const priceMap = {
-  "中油": { "92":29.2, "95":31.2, "98":33.2, "diesel":27.5 },
-  "台塑": { "92":29.0, "95":31.0, "98":33.0, "diesel":27.3 }
+  "中油": { "92":32.4, "95":33.9, "98":35.9, "diesel":31.0 },
+  "台塑": { "92":32.2, "95":33.7, "98":35.7, "diesel":30.8 }
 };
 
 /* ===== 元素 ===== */
-const sourceEl = document.getElementById("source");
-const typeEl = document.getElementById("type");
-const priceEl = document.getElementById("price");
-const amountEl = document.getElementById("amount");
-const mileageEl = document.getElementById("mileage");
+const sourceEl   = document.getElementById("source");
+const typeEl     = document.getElementById("type");
+const priceEl    = document.getElementById("price");
+const amountEl   = document.getElementById("amount");
+const mileageEl  = document.getElementById("mileage");
+const distanceEl = document.getElementById("distance");
+const efficiencyEl = document.getElementById("efficiency");
+const chartEl    = document.getElementById("chart");  // 統一用 chartEl
 
-const tabRecord = document.getElementById("tabRecord");
+const tabRecord  = document.getElementById("tabRecord");
 const tabHistory = document.getElementById("tabHistory");
 const recordPage = document.getElementById("recordPage");
-const historyPage = document.getElementById("historyPage");
+const historyPage= document.getElementById("historyPage");
 
-/* ===== 油價自動 ===== */
+/* ===== 油價自動填入 ===== */
 function updatePrice(){
   const s = sourceEl.value;
   const t = typeEl.value;
@@ -204,177 +200,190 @@ function saveData(d){
   localStorage.setItem(KEY, JSON.stringify(d));
 }
 
-/* ===== 計算 ===== */
+/* ===== 計算距離與油耗 ===== */
 function calc(last, now){
   if(!last) return {distance:0, eff:0};
   const distance = now.mileage - last.mileage;
-  if(distance<=0) return {distance:0, eff:0};
+  if(distance <= 0) return {distance:0, eff:0};
   const liter = now.amount / now.price;
-  return {distance, eff: distance/liter};
+  return {distance, eff: distance / liter};
 }
 
-/* ===== UI ===== */
-function updateUI(d,e){
-  distance.textContent = d ? d.toFixed(0) : "--";
-  efficiency.textContent = e ? e.toFixed(2) : "--";
+/* ===== 更新 UI 顯示 ===== */
+function updateUI(d, e){
+  distanceEl.textContent  = d ? d.toFixed(0) : "--";
+  efficiencyEl.textContent = e ? e.toFixed(2) : "--";
 }
 
-/* ===== chart ===== */
+/* ===== [修正] 自定義 plugin：柱頂顯示總公升數 ===== */
+const totalLabelPlugin = {
+  id: "totalLabel",
+  afterDatasetsDraw(chart){
+    const { ctx, data, scales: { x, y } } = chart;
+    // 計算每個 x index 的加油量總和
+    const totals = {};
+    data.datasets.forEach(ds=>{
+      if(ds.type !== "bar") return;
+      ds.data.forEach((v,i)=>{
+        totals[i] = (totals[i]||0) + (v||0);
+      });
+    });
+    ctx.save();
+    ctx.fillStyle = "#fff";
+    ctx.font = "11px -apple-system,sans-serif";
+    ctx.textAlign = "center";
+    Object.entries(totals).forEach(([i,total])=>{
+      if(total <= 0) return;
+      const xPos = x.getPixelForValue(Number(i));
+      const yPos = y.getPixelForValue(total) - 6;
+      ctx.fillText(total.toFixed(1)+"L", xPos, yPos);
+    });
+    ctx.restore();
+  }
+};
+
+/* ===== [修正] 圖表：只建立一次，油耗折線對齊日期 ===== */
 let chart;
 function drawChart(){
   const data = getData();
 
   if(chart) chart.destroy();
 
-  // ===== 1️⃣ 取得本週星期一 =====
+  // 本週星期一
   const now = new Date();
-  const day = now.getDay(); // 0=日
+  const day = now.getDay();
   const monday = new Date(now);
-  const diff = (day === 0 ? -6 : 1 - day);
-  monday.setDate(now.getDate() + diff);
+  monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
 
-  // ===== 2️⃣ 建立一週 labels（固定7天）=====
+  // 建立7天 labels 與 dateMap
   const labels = [];
   const dateMap = {};
-
-  for(let i=0;i<7;i++){
+  for(let i = 0; i < 7; i++){
     const d = new Date(monday);
-    d.setDate(monday.getDate()+i);
-
-    const key = d.toISOString().slice(5,10); // MM-DD
+    d.setDate(monday.getDate() + i);
+    const key = d.toISOString().slice(5, 10); // MM-DD
     labels.push(key);
     dateMap[key] = [];
   }
 
-  // ===== 3️⃣ 把資料丟進對應日期 =====
+  // 把紀錄放入對應日期
   data.forEach(d=>{
-    const key = new Date(d.date).toISOString().slice(5,10);
-    if(dateMap[key]){
+    const key = d.date.slice(5, 10); // MM-DD
+    if(dateMap[key] !== undefined){
       dateMap[key].push(d);
     }
   });
 
-  // ===== 4️⃣ 建立 stack datasets（每筆一個顏色）=====
+  // 堆疊柱狀 datasets（每天每筆一個顏色）
   const datasets = [];
+  const colors = ["#4da3ff","#ff6b6b","#51cf66","#ffd43b","#cc5de8","#ff922b","#20c997"];
 
-/* ===== 1️⃣ 加油量（柱狀） ===== */
-labels.forEach(date=>{
-  const items = dateMap[date];
-
-  items.forEach((item, index)=>{
-    const liter = item.amount / item.price;
-
-    datasets.push({
-      type: "bar",
-      data: labels.map(d => d===date ? liter : 0),
-      backgroundColor: `hsl(${(index*60)%360},70%,60%)`,
-      stack: "fuel"
+  let colorIdx = 0;
+  labels.forEach(date=>{
+    const items = dateMap[date];
+    items.forEach(item=>{
+      const liter = item.amount / item.price;
+      datasets.push({
+        type: "bar",
+        data: labels.map(d => d === date ? liter : 0),
+        backgroundColor: colors[colorIdx % colors.length],
+        stack: "fuel",
+        label: item.date
+      });
+      colorIdx++;
     });
   });
-});
 
-/* ===== 2️⃣ 油耗平均（折線） ===== */
-const effList = data.map(d=>d.eff).filter(v=>v);
+  /* [修正] 油耗折線：對齊7天 labels，取當天最後一筆的油耗 */
+  const effByDate = {};
+  data.forEach(d=>{
+    const key = d.date.slice(5, 10);
+    if(d.eff) effByDate[key] = d.eff; // 同天多筆取最後一筆
+  });
 
-let runningAvg = [];
-let sum = 0;
+  const effData = labels.map(date => effByDate[date] || null);
 
-effList.forEach((v,i)=>{
-  sum += v;
-  runningAvg.push(sum/(i+1));
-});
+  datasets.push({
+    type: "line",
+    data: effData,
+    borderColor: "#fff",
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    tension: 0.3,
+    pointRadius: 4,
+    spanGaps: true,
+    yAxisID: "y1",
+    label: "油耗(km/L)"
+  });
 
-datasets.push({
-  type:"line",
-  data: labels.map((_,i)=> runningAvg[i] || null),
-  borderColor:"#fff",
-  borderWidth:2,
-  tension:0.3,
-  yAxisID:"y1"
-});
-
-/* ===== 3️⃣ 建立圖表 ===== */
-chart = new Chart(chartEL,{
-  data:{
-    labels,
-    datasets
-  },
-  options:{
-    responsive:true,
-    plugins:{
-      legend:{display:false}
-    },
-    scales:{
-      x:{stacked:true},
-      y:{
-        stacked:true,
-        title:{display:true,text:"加油量(L)"}
-      },
-      y1:{
-        position:"right",
-        grid:{drawOnChartArea:false},
-        title:{display:true,text:"km/L"}
-      }
-    }
-  },
-  plugins:[totalLabelPlugin],
-});
-
-  // ===== 5️⃣ 建立圖表 =====
-  chart = new Chart(chartEl,{
-    type:"bar",
-    data:{
+  /* [修正] 只建立一次 Chart，移除重複的 new Chart() */
+  chart = new Chart(chartEl, {
+    data: {
       labels,
       datasets
     },
-    options:{
-      responsive:true,
-      plugins:{
-        legend:{display:false}
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
       },
-      scales:{
-        x:{stacked:true},
-        y:{stacked:true}
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          title: { display: true, text: "加油量(L)", color: "#aaa" }
+        },
+        y1: {
+          position: "right",
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: "km/L", color: "#aaa" }
+        }
       }
     },
-    plugins:[totalLabelPlugin],
+    plugins: [totalLabelPlugin]  // [修正] plugin 已正確定義
   });
 }
 
-const chartEl = document.getElementById("chart");
-
-/* ===== history ===== */
+/* ===== 歷史 ===== */
 function renderHistory(){
   const list = document.getElementById("historyList");
-  list.innerHTML="";
+  list.innerHTML = "";
 
   const data = getData().slice().reverse();
+  if(!data.length){
+    list.innerHTML = "<div style='color:#aaa;text-align:center;padding:20px'>還沒有紀錄</div>";
+    return;
+  }
 
-  data.forEach((d,i)=>{
+  data.forEach(d=>{
+    const liter = d.price ? (d.amount / d.price).toFixed(2) : "--";
     const div = document.createElement("div");
-    div.className="item";
-    div.innerText = `${d.date} | ${d.mileage}km | ${d.eff?.toFixed(2)||"--"}`;
+    div.className = "item";
+    div.innerHTML = `
+      <div>${d.date}　${d.mileage.toLocaleString()} km</div>
+      <div style="color:#aaa;font-size:12px;margin-top:3px">
+        $${d.amount} ／ ${liter}L ／ ${d.price}元/L ／ 油耗：${d.eff ? d.eff.toFixed(2) : "--"} km/L
+      </div>`;
     list.appendChild(div);
   });
 }
 
-/* ===== SAVE ===== */
-saveBtn.onclick = ()=>{
-
-  const amount = parseFloat(amountEl.value);
+/* ===== 儲存 ===== */
+document.getElementById("saveBtn").onclick = ()=>{
+  const amount  = parseFloat(amountEl.value);
   const mileage = parseFloat(mileageEl.value);
-  const price = parseFloat(priceEl.value);
+  const price   = parseFloat(priceEl.value);
 
   if(!amount || !mileage || !price){
-    alert("請輸入完整");
+    alert("請輸入完整資料");
     return;
   }
 
   const data = getData();
-  const last = data[data.length-1];
+  const last = data[data.length - 1];
 
   const record = {
-    date:new Date().toISOString().slice(0,10),
+    date: new Date().toISOString().slice(0, 10),
     amount,
     mileage,
     price
@@ -390,21 +399,21 @@ saveBtn.onclick = ()=>{
   updateUI(r.distance, r.eff);
   drawChart();
 
-  amountEl.value="";
+  amountEl.value = "";
   mileageEl.value = record.mileage;
 
-  setTimeout(()=>amountEl.focus(),50);
+  setTimeout(()=>amountEl.focus(), 50);
 };
 
-/* ===== tabs ===== */
-tabRecord.onclick=()=>{
+/* ===== Tabs ===== */
+tabRecord.onclick = ()=>{
   tabRecord.classList.add("active");
   tabHistory.classList.remove("active");
   recordPage.classList.remove("hidden");
   historyPage.classList.add("hidden");
 };
 
-tabHistory.onclick=()=>{
+tabHistory.onclick = ()=>{
   tabHistory.classList.add("active");
   tabRecord.classList.remove("active");
   recordPage.classList.add("hidden");
@@ -416,15 +425,14 @@ tabHistory.onclick=()=>{
 function init(){
   updatePrice();
   drawChart();
-
   const data = getData();
   if(data.length){
-    mileageEl.value = data[data.length-1].mileage;
+    mileageEl.value = data[data.length - 1].mileage;
   }
 }
 
 sourceEl.onchange = updatePrice;
-typeEl.onchange = updatePrice;
+typeEl.onchange   = updatePrice;
 
 init();
 
