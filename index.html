@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
 <title>加油紀錄</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -9,9 +12,9 @@
 <style>
 body{
   margin:0;
-  font-family:sans-serif;
   background:#000;
   color:#fff;
+  font-family:sans-serif;
 }
 
 .container{
@@ -25,16 +28,25 @@ body{
   margin-bottom:20px;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
+/* 三欄 */
+.row3{
+  display:flex;
+  gap:10px;
 }
 
-.grid3{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:12px;
+.row3 > *{
+  flex:1;
+}
+
+/* 兩欄 */
+.row2{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+.row2 > *{
+  flex:1;
 }
 
 input,select{
@@ -45,6 +57,7 @@ input,select{
   background:#2c2c2e;
   color:#fff;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 button{
@@ -86,34 +99,33 @@ button{
 <h2>⛽ 加油紀錄</h2>
 
 <div class="tab">
-  <button id="tabRecord" class="active">紀錄</button>
-  <button id="tabHistory">歷史</button>
+<button id="tabRecord" class="active">紀錄</button>
+<button id="tabHistory">歷史</button>
 </div>
 
-<!-- 記錄頁 -->
 <div id="recordPage">
 
 <div class="card">
 
-<div class="grid3">
+<div class="row3">
 <select id="source">
-  <option>中油</option>
-  <option>台塑</option>
+<option>中油</option>
+<option>台塑</option>
 </select>
 
 <select id="type">
-  <option>92</option>
-  <option selected>95</option>
-  <option>98</option>
-  <option>柴油</option>
+<option>92</option>
+<option selected>95</option>
+<option>98</option>
+<option>柴油</option>
 </select>
 
-<input id="price" type="number" placeholder="油價">
+<input id="price" type="number" inputmode="decimal" placeholder="油價">
 </div>
 
-<div class="grid">
-<input id="amount" type="number" placeholder="金額">
-<input id="km" type="number" placeholder="總里程">
+<div class="row2">
+<input id="amount" type="number" inputmode="decimal" placeholder="金額">
+<input id="km" type="number" inputmode="numeric" placeholder="總里程">
 </div>
 
 <button onclick="save()">儲存</button>
@@ -130,7 +142,6 @@ button{
 
 </div>
 
-<!-- 歷史頁 -->
 <div id="historyPage" class="hidden">
 <div class="card" id="history"></div>
 </div>
@@ -139,17 +150,33 @@ button{
 
 <script>
 
-let data = JSON.parse(localStorage.getItem("fuel") || "[]")
+/* ===== 自動油價 ===== */
 
-function formatDate(d){
-  return d.toISOString().split("T")[0]
+function autoPrice(){
+  const type = document.getElementById("type").value
+
+  const priceMap = {
+    "92":30,
+    "95":31.2,
+    "98":33,
+    "柴油":28
+  }
+
+  document.getElementById("price").value = priceMap[type] || ""
 }
+
+document.getElementById("type").onchange = autoPrice
+autoPrice()
+
+/* ===== 資料 ===== */
+
+let data = JSON.parse(localStorage.getItem("fuel") || "[]")
 
 function save(){
 
-  const amount = parseFloat(document.getElementById("amount").value)
-  const km = parseFloat(document.getElementById("km").value)
-  const price = parseFloat(document.getElementById("price").value)
+  const amount = parseFloat(amountEl.value)
+  const km = parseFloat(kmEl.value)
+  const price = parseFloat(priceEl.value)
 
   if(!amount || !km || !price){
     alert("請輸入完整")
@@ -161,18 +188,20 @@ function save(){
   let distance = 0
   if(last){
     distance = km - last.km
+    if(distance < 0){
+      alert("里程不能比上一筆小")
+      return
+    }
   }
 
   const liter = amount / price
-  const avg = distance && liter ? (distance / liter) : 0
+  const avg = distance && liter ? distance / liter : 0
 
   const item = {
-    date: formatDate(new Date()),
+    date: new Date().toISOString().slice(0,10),
     km,
-    amount,
-    price,
-    distance,
-    avg
+    avg,
+    distance
   }
 
   data.push(item)
@@ -181,31 +210,36 @@ function save(){
   update()
 }
 
+const amountEl = document.getElementById("amount")
+const kmEl = document.getElementById("km")
+const priceEl = document.getElementById("price")
+
 function update(){
 
   const last = data[data.length-1]
 
   if(!last){
-    document.getElementById("result").innerHTML="距離：- km<br>油耗：- km/L"
+    result.innerHTML="距離：- km<br>油耗：- km/L"
     return
   }
 
-  document.getElementById("result").innerHTML =
+  result.innerHTML =
     `距離：${last.distance} km<br>油耗：${last.avg.toFixed(2)} km/L`
 
   renderHistory()
   drawChart()
 }
 
+/* ===== 歷史 ===== */
+
 function renderHistory(){
-
-  const el = document.getElementById("history")
-  el.innerHTML=""
-
+  history.innerHTML=""
   data.slice().reverse().forEach(i=>{
-    el.innerHTML += `<div>${i.date} | ${i.km} km</div><hr>`
+    history.innerHTML += `<div>${i.date} | ${i.km} km</div><hr>`
   })
 }
+
+/* ===== 圖表 ===== */
 
 let chart
 
@@ -217,9 +251,7 @@ function drawChart(){
 
   const grouped = {}
 
-  labels.forEach(d=>{
-    grouped[d]=[]
-  })
+  labels.forEach(d=>grouped[d]=[])
 
   data.forEach(i=>{
     grouped[i.date].push(i.avg)
@@ -231,18 +263,17 @@ function drawChart(){
 
   for(let i=0;i<max;i++){
     datasets.push({
-      label:`第${i+1}次`,
       data: labels.map(d=>grouped[d][i] || 0),
       backgroundColor:`hsl(${i*60},70%,60%)`,
       stack:"a"
     })
   }
 
-  chart = new Chart(document.getElementById("chart"),{
+  chart = new Chart(chartEl,{
     type:"bar",
     data:{labels,datasets},
     options:{
-      responsive:true,
+      plugins:{legend:false},
       scales:{
         x:{stacked:true},
         y:{stacked:true}
@@ -251,7 +282,10 @@ function drawChart(){
   })
 }
 
-/* tab */
+const chartEl = document.getElementById("chart")
+
+/* ===== tab ===== */
+
 tabRecord.onclick=()=>{
   recordPage.classList.remove("hidden")
   historyPage.classList.add("hidden")
