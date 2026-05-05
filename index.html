@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>油耗管理</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: #fff;
+  padding: 20px;
+}
+
+.card {
+  background: #222;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #00d4ff;
+  border: none;
+}
+
+h2 {
+  color: #00d4ff;
+}
+</style>
+</head>
+
+<body>
+
+<h2>⛽ 加油紀錄</h2>
+
+<div class="card">
+<div>油價（中油95）：31.2 元/L</div>
+
+<input id="cost" placeholder="輸入金額">
+<input id="km" placeholder="輸入里程">
+
+<button onclick="save()">儲存</button>
+</div>
+
+<div class="card" id="result"></div>
+
+<h2>📊 本週油耗</h2>
+<canvas id="chart"></canvas>
+
+<script>
+
+let logs = JSON.parse(localStorage.getItem("logs") || "[]");
+
+// 👉 預設游標 + 自動帶入里程
+window.onload = () => {
+  document.getElementById("cost").focus();
+
+  if(logs.length > 0){
+    document.getElementById("km").value = logs[logs.length - 1].km;
+  }
+
+  drawWeekChart();
+};
+
+function save(){
+
+  let price = 31.2;
+  let costVal = parseFloat(cost.value);
+  let kmVal = parseFloat(km.value);
+
+  if(!costVal || !kmVal){
+    alert("請輸入金額與里程");
+    return;
+  }
+
+  let lastKM = logs.length ? logs[logs.length - 1].km : kmVal;
+  let diff = kmVal - lastKM;
+
+  let liters = costVal / price;
+  let eff = diff > 0 ? (diff / liters).toFixed(2) : "-";
+
+  let data = {
+    date: new Date().toISOString(),
+    cost: costVal,
+    km: kmVal,
+    diff: diff,
+    eff: eff
+  };
+
+  logs.push(data);
+  localStorage.setItem("logs", JSON.stringify(logs));
+
+  showResult(data);
+  drawWeekChart();
+}
+
+// 👉 顯示結果
+function showResult(d){
+  document.getElementById("result").innerHTML = `
+    <div>行駛距離：${d.diff} km</div>
+    <div>油耗：${d.eff} km/L</div>
+  `;
+}
+
+// 👉 本週資料
+function getWeekData(){
+  let now = new Date();
+  let start = new Date(now.setDate(now.getDate() - now.getDay()));
+
+  return logs.filter(l => new Date(l.date) >= start);
+}
+
+// 👉 畫圖
+function drawWeekChart(){
+
+  let data = getWeekData();
+
+  let labels = data.map(d => {
+    let date = new Date(d.date);
+    return (date.getMonth()+1) + "/" + date.getDate();
+  });
+
+  let values = data.map(d => d.eff);
+
+  const ctx = document.getElementById("chart");
+
+  if(window.chart) window.chart.destroy();
+
+  window.chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '油耗 km/L',
+        data: values
+      }]
+    }
+  });
+}
+
+</script>
+
+</body>
+</html>
