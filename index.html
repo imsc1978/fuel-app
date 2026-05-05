@@ -110,8 +110,23 @@ button{
 <div class="card">
 
 <div class="grid">
-  <input id="amount" type="number" inputmode="decimal" placeholder="金額">
-  <input id="mileage" type="number" inputmode="numeric" placeholder="總里程">
+  <select id="source">
+    <option value="中油">中油</option>
+    <option value="台塑">台塑</option>
+  </select>
+
+  <select id="type">
+    <option value="92">92</option>
+    <option value="95" selected>95</option>
+    <option value="98">98</option>
+  </select>
+
+  <input id="price" type="number" placeholder="油價" inputmode="decimal">
+</div>
+
+<div class="grid">
+  <input id="amount" type="number" placeholder="金額" inputmode="decimal">
+  <input id="mileage" type="number" placeholder="總里程" inputmode="numeric">
 </div>
 
 <button id="saveBtn">儲存</button>
