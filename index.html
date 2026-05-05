@@ -323,16 +323,27 @@ saveData(data);
 updateUI(result.distance, result.eff);
 drawChart();
 
-/* ⭐ 先清金額 */
+/* ⭐ 清空金額 */
 amountEl.value = "";
 
-/* ⭐ 再 focus */
-amountEl.focus();
-
-/* ⭐ 最後才設里程（避免干擾輸入） */
+/* ⭐ 先更新里程 */
 const latest = getData().slice(-1)[0];
 if(latest){
   mileageEl.value = latest.mileage;
+}
+
+/* ⭐ iOS 防爆 */
+
+setTimeout(()=>{
+
+  amountEl.focus();
+
+}, 50);
+
+/* ⭐ 最後才 focus（關鍵） */
+amountEl.focus();
+
+
 }
 };
 
