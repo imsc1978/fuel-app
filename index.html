@@ -1,104 +1,135 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>加油紀錄</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{
   margin:0;
+  font-family:-apple-system;
   background:#000;
   color:#fff;
-  font-family:-apple-system;
 }
+
 .container{
   padding:16px;
-  max-width:520px;
-  margin:auto;
 }
-.card{
-  background:#1c1c1e;
+
+h1{
+  font-size:28px;
+  margin-bottom:16px;
+}
+
+.tabs{
+  display:flex;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.tab{
+  flex:1;
+  padding:14px;
   border-radius:16px;
-  padding:16px;
-  margin-top:16px;
+  background:#222;
+  text-align:center;
 }
+
+.tab.active{
+  background:#3b6cff;
+}
+
+.card{
+  background:#1a1a1a;
+  border-radius:20px;
+  padding:16px;
+  margin-bottom:16px;
+}
+
 .row{
   display:flex;
   gap:10px;
-  margin-bottom:12px;
 }
-.field{
+
+.col{
   flex:1;
 }
-.label{
-  font-size:12px;
+
+label{
+  font-size:13px;
   color:#aaa;
-  margin-bottom:4px;
+  margin-bottom:6px;
+  display:block;
 }
+
 input,select{
   width:100%;
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:#2c2c2e;
-  color:#fff;
-  font-size:14px;
-}
-button{
-  width:100%;
   padding:14px;
+  border-radius:14px;
   border:none;
-  border-radius:12px;
-  background:linear-gradient(90deg,#2aa7ff,#3b6cff);
+  background:#2a2a2a;
   color:#fff;
   font-size:16px;
 }
-.tab{
-  display:flex;
-  gap:10px;
+
+button{
+  width:100%;
+  padding:16px;
+  border-radius:18px;
+  border:none;
+  background:linear-gradient(90deg,#29a3ff,#3b6cff);
+  color:#fff;
+  font-size:18px;
+  margin-top:12px;
 }
-.tab button{
-  flex:1;
-  background:#2c2c2e;
-}
-.active{
-  background:#3b6cff!important;
-}
+
 .hidden{
   display:none;
+}
+
+.stat{
+  font-size:18px;
+  line-height:1.6;
+}
+
+.history-item{
+  padding:12px 0;
+  border-bottom:1px solid #333;
 }
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
-<h2>⛽ 加油紀錄</h2>
+<h1>⛽ 加油紀錄</h1>
 
-<div class="tab">
-  <button id="tabRecord" class="active">紀錄</button>
-  <button id="tabHistory">歷史</button>
+<div class="tabs">
+  <div id="tabRecord" class="tab active">紀錄</div>
+  <div id="tabHistory" class="tab">歷史</div>
 </div>
 
-<!-- 紀錄頁 -->
+<!-- 記錄頁 -->
 <div id="recordPage">
 
 <div class="card">
 
 <div class="row">
-  <div class="field">
-    <div class="label">油品來源</div>
-    <select id="source">
+  <div class="col">
+    <label>油品來源</label>
+    <select id="brand">
       <option>中油</option>
       <option>台塑</option>
     </select>
   </div>
 
-  <div class="field">
-    <div class="label">油種</div>
-    <select id="fuel">
+  <div class="col">
+    <label>油種</label>
+    <select id="type">
       <option value="92">92</option>
       <option value="95" selected>95</option>
       <option value="98">98</option>
@@ -106,29 +137,29 @@ button{
     </select>
   </div>
 
-  <div class="field">
-    <div class="label">油價</div>
-    <input id="price" type="number">
+  <div class="col">
+    <label>油價</label>
+    <input id="price" readonly>
   </div>
 </div>
 
-<div class="row">
-  <div class="field">
-    <div class="label">金額</div>
-    <input id="amount" type="number">
+<div class="row" style="margin-top:10px;">
+  <div class="col">
+    <label>金額</label>
+    <input id="amount" type="text" inputmode="decimal" placeholder="輸入金額">
   </div>
 
-  <div class="field">
-    <div class="label">總里程</div>
-    <input id="km" type="number">
+  <div class="col">
+    <label>總里程</label>
+    <input id="mileage" type="text" inputmode="numeric" placeholder="輸入里程">
   </div>
 </div>
 
-<button onclick="save()">儲存</button>
+<button id="save">儲存</button>
 
 </div>
 
-<div class="card">
+<div class="card stat">
 距離：<span id="distance">-</span> km<br>
 油耗：<span id="kmpl">-</span> km/L
 </div>
@@ -139,159 +170,171 @@ button{
 
 </div>
 
-<!-- 歷史頁 -->
+<!-- 歷史 -->
 <div id="historyPage" class="hidden">
-  <div class="card" id="historyList"></div>
+<div class="card" id="historyList"></div>
 </div>
 
 </div>
 
 <script>
 
-let records = JSON.parse(localStorage.getItem("fuel")||"[]")
-
-const priceMap={
-  "92":29.2,
+const prices = {
+  "92":29,
   "95":31.2,
   "98":33.2,
-  "diesel":27.5
+  "diesel":27
 }
 
-fuel.onchange=()=>{
-  price.value = priceMap[fuel.value]
+const typeEl = document.getElementById("type")
+const priceEl = document.getElementById("price")
+const mileageEl = document.getElementById("mileage")
+
+function updatePrice(){
+  priceEl.value = prices[typeEl.value]
 }
 
-price.value = 31.2
+typeEl.onchange = updatePrice
+updatePrice()
 
-function getDate(){
-  const d=new Date()
-  const tz=d.getTimezoneOffset()*60000
-  return new Date(d-tz).toISOString().slice(0,10)
+let data = JSON.parse(localStorage.getItem("fuel")||"[]")
+
+// 自動帶入最後里程
+if(data.length){
+  mileageEl.value = data[data.length-1].mileage
 }
 
-function getWeek(){
-  const now=new Date()
-  const day=now.getDay()||7
-  const monday=new Date(now)
-  monday.setDate(now.getDate()-day+1)
+document.getElementById("save").onclick = ()=>{
+  const amount = parseFloat(amountEl.value)
+  const mileage = parseInt(mileageEl.value)
+  const price = parseFloat(priceEl.value)
 
-  let days=[]
-  for(let i=0;i<7;i++){
-    let d=new Date(monday)
-    d.setDate(monday.getDate()+i)
-    const tz=d.getTimezoneOffset()*60000
-    days.push(new Date(d-tz).toISOString().slice(0,10))
-  }
-  return days
-}
+  if(!amount || !mileage) return alert("請輸入完整")
 
-function save(){
-
-  const p=parseFloat(price.value)
-  const a=parseFloat(amount.value)
-  const k=parseFloat(km.value)
-
-  if(!p||!a||!k){
-    alert("請填完整")
-    return
+  if(data.length && mileage <= data[data.length-1].mileage){
+    return alert("里程需大於上一筆")
   }
 
-  if(records.length && k<records.at(-1).km){
-    alert("里程不能倒退")
-    return
-  }
+  const liters = amount / price
 
-  const liter=a/p
-  let kmplVal=0
-
-  if(records.length){
-    kmplVal=(k-records.at(-1).km)/liter
-  }
-
-  records.push({
-    date:getDate(),
-    km:k,
-    kmpl:kmplVal
+  data.push({
+    date: new Date().toISOString().slice(0,10),
+    mileage,
+    liters
   })
 
-  localStorage.setItem("fuel",JSON.stringify(records))
+  localStorage.setItem("fuel",JSON.stringify(data))
+
+  amountEl.value=""
+  mileageEl.value = mileage
 
   update()
-  drawChart()
-  renderHistory()
-
-  amount.value=""
 }
+
+const amountEl = document.getElementById("amount")
 
 function update(){
 
-  if(records.length){
-    km.value = records.at(-1).km
-  }
-
-  if(records.length<2){
-    distance.innerText="-"
-    kmpl.innerText="-"
+  if(data.length < 2){
+    distance.innerText = "-"
+    kmpl.innerText = "-"
+    drawChart()
+    renderHistory()
     return
   }
 
-  const last=records.at(-1)
-  const prev=records.at(-2)
+  let totalDist = 0
+  let totalFuel = 0
 
-  distance.innerText = last.km - prev.km
-  kmpl.innerText = last.kmpl.toFixed(2)
+  for(let i=1;i<data.length;i++){
+    totalDist += data[i].mileage - data[i-1].mileage
+    totalFuel += data[i].liters
+  }
+
+  distance.innerText = totalDist
+  kmpl.innerText = (totalDist/totalFuel).toFixed(2)
+
+  drawChart()
+  renderHistory()
+}
+
+function getWeekDates(){
+  const now = new Date()
+  const day = now.getDay() || 7
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - day + 1)
+
+  let arr=[]
+  for(let i=0;i<7;i++){
+    let d = new Date(monday)
+    d.setDate(monday.getDate()+i)
+    arr.push(d.toISOString().slice(5,10))
+  }
+  return arr
 }
 
 let chart
 
 function drawChart(){
 
-  if(chart) chart.destroy()
+  const labels = getWeekDates()
 
-  const days=getWeek()
+  let datasets=[]
 
-  const grouped={}
-  records.forEach(r=>{
-    if(!grouped[r.date]) grouped[r.date]=[]
-    grouped[r.date].push(r)
-  })
+  const maxStack = 5
 
-  const max=Math.max(1,...Object.values(grouped).map(v=>v.length))
-
-  const datasets=[]
-
-  for(let i=0;i<max;i++){
+  for(let i=0;i<maxStack;i++){
     datasets.push({
-      data:days.map(d=>grouped[d]?.[i]?.kmpl||0),
-      backgroundColor:`hsl(${i*70},70%,60%)`
+      data: labels.map(()=>0),
+      backgroundColor:`hsl(${i*60},70%,60%)`,
+      stack:"stack"
     })
   }
 
-  chart=new Chart(
-    document.getElementById("chart"),
-    {
-      type:"bar",
-      data:{
-        labels:days.map(d=>d.slice(5)),
-        datasets:datasets
-      },
-      options:{
-        plugins:{
-          legend:{display:false}
-        },
-        scales:{
-          x:{stacked:true},
-          y:{stacked:true}
-        }
+  let dayMap = {}
+
+  data.forEach((d)=>{
+    const key = d.date.slice(5,10)
+    if(!dayMap[key]) dayMap[key]=[]
+    dayMap[key].push(d)
+  })
+
+  labels.forEach((day,idx)=>{
+    const list = dayMap[day]||[]
+
+    list.forEach((item,i)=>{
+      datasets[i].data[idx] = item.liters
+    })
+  })
+
+  if(chart) chart.destroy()
+
+  chart = new Chart(document.getElementById("chart"),{
+    type:"bar",
+    data:{
+      labels,
+      datasets
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{stacked:true},
+        y:{stacked:true}
       }
     }
-  )
+  })
 }
 
 function renderHistory(){
-  historyList.innerHTML = records.map(r=>`
-    <div>${r.date} | ${r.km} km</div>
-  `).join("<hr>")
+  const el = document.getElementById("historyList")
+  el.innerHTML=""
+
+  data.slice().reverse().forEach(d=>{
+    const div = document.createElement("div")
+    div.className="history-item"
+    div.innerText = `${d.date} | ${d.mileage} km`
+    el.appendChild(div)
+  })
 }
 
 tabRecord.onclick=()=>{
@@ -305,8 +348,6 @@ tabHistory.onclick=()=>{
 }
 
 update()
-drawChart()
-renderHistory()
 
 </script>
 
