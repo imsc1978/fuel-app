@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -34,17 +34,19 @@ body{
 
 .field{
   flex:1;
+  min-width:0;
 }
 
 .label{
   font-size:13px;
   color:#aaa;
-  margin-bottom:4px;
+  margin-bottom:6px;
 }
 
 input,select{
   width:100%;
-  padding:12px;
+  padding:14px;
+  font-size:16px; /* 防iOS放大 */
   border:none;
   border-radius:10px;
   background:#2c2c2e;
@@ -58,6 +60,7 @@ button{
   border-radius:12px;
   background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
+  font-size:16px;
 }
 
 .tab{
@@ -110,6 +113,7 @@ button{
       <option value="92">92</option>
       <option value="95" selected>95</option>
       <option value="98">98</option>
+      <option value="diesel">柴油</option>
     </select>
   </div>
 
@@ -155,18 +159,30 @@ button{
 <script>
 
 let records = JSON.parse(localStorage.getItem("fuel")||"[]")
-let chart
+
+// 🔥 修正舊日期格式
+records = records.map(r=>{
+  if(r.date.includes("/")){
+    const d = new Date(r.date)
+    r.date = d.toISOString().slice(0,10)
+  }
+  return r
+})
 
 const priceMap={
   "92":29.2,
   "95":31.2,
-  "98":33.2
+  "98":33.2,
+  "diesel":27.5
 }
 
 fuel.onchange=()=>{
   priceInput.value = priceMap[fuel.value]
 }
+
 priceInput.value = 31.2
+
+let chart
 
 function save(){
 
@@ -192,7 +208,7 @@ function save(){
   }
 
   records.push({
-    date: new Date().toISOString().slice(0,10), // 🔥唯一格式
+    date: new Date().toISOString().slice(0,10),
     km,
     kmpl
   })
@@ -220,7 +236,6 @@ function update(){
   kmpl.innerText = last.kmpl.toFixed(2)
 }
 
-// 🔥 真正同一天堆疊
 function drawChart(){
 
   if(chart) chart.destroy()
