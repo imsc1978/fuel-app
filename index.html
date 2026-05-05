@@ -319,25 +319,21 @@ document.getElementById("saveBtn").onclick = ()=>{
   data.push(record);
 saveData(data);
 
-/* ⭐ UI 更新 */
 updateUI(result.distance, result.eff);
 drawChart();
 
-/* ⭐ 清空金額 */
+/* 清空金額 */
 amountEl.value = "";
 
-/* ⭐ 先更新里程 */
-const latest = getData().slice(-1)[0];
+/* ⭐ 用記憶體 data，不要重新抓 */
+const latest = data[data.length - 1];
 if(latest){
   mileageEl.value = latest.mileage;
 }
 
-/* ⭐ iOS 防爆 */
-
+/* ⭐ 最後 focus */
 setTimeout(()=>{
-
   amountEl.focus();
-
 }, 50);
 
 /* ⭐ 最後才 focus（關鍵） */
