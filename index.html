@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,35 +10,30 @@
 
 <style>
 body{
-  margin:0;
   background:#000;
   color:#fff;
-  font-family:-apple-system;
-}
-
-.container{
-  max-width:420px;
-  margin:auto;
-  padding:20px;
+  font-family:sans-serif;
+  padding:16px;
 }
 
 .card{
   background:#1c1c1e;
-  border-radius:16px;
-  padding:15px;
-  margin-bottom:15px;
+  padding:16px;
+  border-radius:18px;
+  margin-bottom:16px;
 }
 
 .row{
   display:flex;
   gap:10px;
+  margin-bottom:10px;
 }
 
 input,select{
-  width:100%;
+  flex:1;
   padding:12px;
-  border:none;
   border-radius:10px;
+  border:none;
   background:#2c2c2e;
   color:#fff;
   font-size:16px;
@@ -49,167 +44,151 @@ button{
   padding:14px;
   border:none;
   border-radius:12px;
-  background:linear-gradient(90deg,#0ea5e9,#2563eb);
+  background:linear-gradient(90deg,#1ea9ff,#2f6bff);
   color:#fff;
   font-size:16px;
-}
-
-.chart-box{
-  height:260px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-
 <h2>⛽ 加油紀錄</h2>
 
 <div class="card">
 
-<div class="row">
-<select id="brand">
-<option value="cpc">中油</option>
-<option value="fpcc">台塑</option>
-</select>
+  <div class="row">
+    <select id="source">
+      <option>中油</option>
+      <option>台塑</option>
+    </select>
 
-<select id="type">
-<option value="92">92</option>
-<option value="95" selected>95</option>
-<option value="98">98</option>
-<option value="diesel">柴油</option>
-</select>
+    <select id="type">
+      <option value="92">92</option>
+      <option value="95" selected>95</option>
+      <option value="98">98</option>
+      <option value="diesel">柴油</option>
+    </select>
 
-<input id="price" inputmode="decimal">
-</div>
+    <input id="price" type="number" step="0.1">
+  </div>
 
-<br>
+  <div class="row">
+    <input id="amount" placeholder="金額" type="number" inputmode="decimal">
+    <input id="km" placeholder="總里程" type="number" inputmode="numeric">
+  </div>
 
-<div class="row">
-<input id="amount" inputmode="numeric" placeholder="輸入金額">
-<input id="km" inputmode="numeric" placeholder="輸入里程">
-</div>
-
-<br>
-
-<button onclick="save()">儲存</button>
-
+  <button onclick="save()">儲存</button>
 </div>
 
 <div class="card">
-<div>距離： <span id="distance">0</span> km</div>
-<div>油耗： <span id="avg">-</span> km/L</div>
+  距離：<span id="distance">-</span> km<br>
+  油耗：<span id="kmpl">-</span> km/L
 </div>
 
-<div class="card chart-box">
-<canvas id="chart"></canvas>
-</div>
-
+<div class="card">
+  <canvas id="chart"></canvas>
 </div>
 
 <script>
 
-let records = JSON.parse(localStorage.getItem("fuel")||"[]")
-
-const priceEl = document.getElementById("price")
-const typeEl = document.getElementById("type")
-
-// ⭐ 油價對應
-const priceMap = {
-cpc:{92:29,95:31.2,98:33,diesel:27},
-fpcc:{92:28.5,95:30.8,98:32.5,diesel:26.5}
+let priceMap={
+  "中油":{"92":30.2,"95":31.2,"98":33.2,"diesel":28},
+  "台塑":{"92":30.0,"95":31.0,"98":33.0,"diesel":27.8}
 }
+
+let records=JSON.parse(localStorage.getItem("fuel")||"[]")
 
 function updatePrice(){
-let brand = document.getElementById("brand").value
-let type = typeEl.value
-priceEl.value = priceMap[brand][type]
+  let s=source.value
+  let t=type.value
+  price.value=priceMap[s][t]
 }
 
-document.getElementById("brand").onchange = updatePrice
-typeEl.onchange = updatePrice
-
+source.onchange=updatePrice
+type.onchange=updatePrice
 updatePrice()
 
-// ⭐ 存檔
 function save(){
 
-let amount = parseFloat(document.getElementById("amount").value)
-let km = parseFloat(document.getElementById("km").value)
-let price = parseFloat(priceEl.value)
+  let amount=parseFloat(amountInput.value)
+  let km=parseFloat(kmInput.value)
+  let priceVal=parseFloat(price.value)
 
-if(isNaN(amount)||isNaN(km)){
-alert("請輸入數值")
-return
+  if(!amount||!km)return alert("請輸入完整")
+
+  let today=new Date().toISOString().slice(0,10)
+
+  let last=records.length?records[records.length-1]:null
+
+  let dist=null
+  let kmpl=null
+
+  if(last){
+    dist=km-last.km
+    let liter=amount/priceVal
+    kmpl=dist/liter
+  }
+
+  records.push({
+    date:today,
+    km:km,
+    kmpl:kmpl
+  })
+
+  localStorage.setItem("fuel",JSON.stringify(records))
+
+  render()
 }
-
-let last = records.length ? records[records.length-1].km : null
-let dist = last ? (km - last) : 0
-let liter = amount / price
-let kmpl = (dist>0)? dist/liter : 0
-
-let today = new Date().toISOString().slice(0,10)
-
-// 同一天累計
-let found = records.find(r=>r.date===today)
-
-if(found){
-found.amount += amount
-found.km = km
-found.kmpl = kmpl
-}else{
-records.push({date:today,km,amount,price,kmpl})
-}
-
-localStorage.setItem("fuel",JSON.stringify(records))
-
-render()
-}
-
-// ⭐ 畫圖
-let chart
 
 function render(){
 
-if(chart) chart.destroy()
+  if(records.length<2){
+    distance.innerText="-"
+    kmpl.innerText="-"
+  }else{
+    let last=records[records.length-1]
+    let prev=records[records.length-2]
 
-let labels=[]
-let data=[]
+    let dist=last.km-prev.km
+    distance.innerText=dist
 
-records.forEach((r,i)=>{
-labels.push("第"+(i+1)+"次")
-data.push(r.kmpl)
-})
+    kmpl.innerText=last.kmpl.toFixed(2)
+  }
 
-let avg = data.filter(x=>x).reduce((a,b)=>a+b,0)/(data.filter(x=>x).length||1)
-
-document.getElementById("avg").innerText =
-avg?avg.toFixed(2):"-"
-
-if(records.length>1){
-document.getElementById("distance").innerText =
-records[records.length-1].km - records[records.length-2].km
+  drawChart()
 }
 
-chart = new Chart(document.getElementById("chart"),{
-type:"bar",
-data:{
-labels,
-datasets:[{
-data,
-backgroundColor:"#3b82f6"
-}]
-},
-options:{
-maintainAspectRatio:false,
-plugins:{
-legend:{display:false}
-}
-}
-})
+function drawChart(){
 
+  let labels=[]
+  let data=[]
+
+  records.forEach(r=>{
+    labels.push(r.date.slice(5))
+    data.push(r.kmpl||0)
+  })
+
+  new Chart(chart,{
+    type:"bar",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"km/L",
+        data:data
+      }]
+    }
+  })
 }
+
+let amountInput=document.getElementById("amount")
+let kmInput=document.getElementById("km")
+let source=document.getElementById("source")
+let type=document.getElementById("type")
+let price=document.getElementById("price")
+let distance=document.getElementById("distance")
+let kmpl=document.getElementById("kmpl")
+let chart=document.getElementById("chart")
 
 render()
 
