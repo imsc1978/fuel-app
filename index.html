@@ -70,12 +70,14 @@ label{
 
 input, select{
   width:100%;
+  min-width:0;          /* ⭐ 這行是關鍵 */
   padding:12px;
   border-radius:10px;
   border:none;
   background:#2c2c2e;
   color:#fff;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 button{
