@@ -226,14 +226,14 @@ function drawChart(){
 
   if(chart) chart.destroy();
 
-  // ⭐ 1. 取得「本週星期一」
+  // ===== 1️⃣ 取得本週星期一 =====
   const now = new Date();
   const day = now.getDay(); // 0=日
   const monday = new Date(now);
   const diff = (day === 0 ? -6 : 1 - day);
   monday.setDate(now.getDate() + diff);
 
-  // ⭐ 2. 建立一週 labels
+  // ===== 2️⃣ 建立一週 labels（固定7天）=====
   const labels = [];
   const dateMap = {};
 
@@ -246,31 +246,30 @@ function drawChart(){
     dateMap[key] = [];
   }
 
-  // ⭐ 3. 分類資料（同一天分組）
+  // ===== 3️⃣ 把資料丟進對應日期 =====
   data.forEach(d=>{
-    const key = d.date.slice(5,10);
+    const key = new Date(d.date).toISOString().slice(5,10);
     if(dateMap[key]){
       dateMap[key].push(d);
     }
   });
 
-  // ⭐ 4. 轉成「stack datasets」（每筆一個顏色）
+  // ===== 4️⃣ 建立 stack datasets（每筆一個顏色）=====
   const datasets = [];
 
   labels.forEach(date=>{
     const items = dateMap[date];
 
-    items.forEach((item, index)=>{
+    items.forEach(item=>{
       datasets.push({
-        label: `${date}-${index}`,
-        data: labels.map(d => d===date ? (item.eff || 0) : 0),
+        data: labels.map(d => d === date ? (item.eff || 0) : 0),
         backgroundColor: `hsl(${Math.random()*360},70%,60%)`,
-        stack: "fuel" // ⭐ 關鍵：堆疊
+        stack: "fuel"
       });
     });
   });
 
-  // ⭐ 5. 建立圖表
+  // ===== 5️⃣ 建立圖表 =====
   chart = new Chart(chartEl,{
     type:"bar",
     data:{
