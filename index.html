@@ -1,36 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>油耗管理</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #111;
+    color: white;
+}
+.card {
+    background: #222;
+    margin: 10px;
+    padding: 15px;
+    border-radius: 12px;
+}
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: none;
+    background: #333;
+    color: white;
+}
+button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 12px;
+    background: #007aff;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>⛽ 加油紀錄</h2>
+    <input id="amount" placeholder="金額" inputmode="decimal">
+    <input id="mileage" placeholder="里程" inputmode="numeric">
+    <button onclick="saveData()">儲存</button>
+</div>
+
+<div class="card">
+    <div id="distance">距離：0 km</div>
+    <div id="efficiency">油耗：- km/L</div>
+</div>
+
+<canvas id="chart"></canvas>
+
 <script>
+console.log("JS 有執行"); // ⭐ debug用
+
 const price = 31.2;
 
-/* ========= 安全讀資料 ========= */
-let raw = [];
+let lastMileage = Number(localStorage.getItem("lastMileage") || 0);
+
+// ⭐ 安全資料
+let records = [];
+
 try {
-    raw = JSON.parse(localStorage.getItem("records") || "[]");
+    let raw = JSON.parse(localStorage.getItem("records") || "[]");
+
+    if (Array.isArray(raw)) {
+        records = raw.filter(r => r && r.date && r.value);
+    }
 } catch (e) {
-    raw = [];
+    records = [];
 }
 
-/* ========= 自動修復舊資料 ========= */
-let records = raw
-    .map(r => {
-        if (typeof r === "number") {
-            return null; // 舊格式直接丟掉
-        }
-        if (!r || !r.date) return null;
-        return {
-            date: r.date,
-            value: Number(r.value)
-        };
-    })
-    .filter(r => r && !isNaN(r.value));
-
-/* ========= 里程 ========= */
-let lastMileage = localStorage.getItem("lastMileage");
-if (lastMileage !== null) {
-    lastMileage = parseFloat(lastMileage);
-    document.getElementById("mileage").value = lastMileage;
-}
-
-/* ========= 日期工具 ========= */
 function getToday() {
     return new Date().toISOString().split("T")[0];
 }
@@ -61,76 +107,73 @@ function getLast7Days() {
     return arr;
 }
 
-/* ========= 建立圖表 ========= */
-const ctx = document.getElementById('chart').getContext('2d');
+// ⭐ 建圖（防炸）
+let chart;
 
-let chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'km/L',
-            data: [],
-        }]
-    },
-    options: {
-        scales: {
-            y: {
-                beginAtZero: true
-            }
+try {
+    const ctx = document.getElementById('chart').getContext('2d');
+
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'km/L',
+                data: []
+            }]
         }
-    }
-});
+    });
 
-/* ========= 更新圖 ========= */
+} catch (e) {
+    console.error("Chart錯誤", e);
+}
+
+// ⭐ 更新圖
 function updateChart() {
-    const weekData = getLast7Days();
+    if (!chart) return;
 
-    chart.data.labels = weekData.map(d => getWeekLabel(d.date));
-    chart.data.datasets[0].data = weekData.map(d => d.value);
+    let week = getLast7Days();
+
+    chart.data.labels = week.map(d => getWeekLabel(d.date));
+    chart.data.datasets[0].data = week.map(d => d.value);
 
     chart.update();
 }
 
-/* ========= 儲存 ========= */
+// ⭐ 儲存
 function saveData() {
-    const amount = parseFloat(document.getElementById("amount").value);
-    const mileage = parseFloat(document.getElementById("mileage").value);
+    let amount = Number(document.getElementById("amount").value);
+    let mileage = Number(document.getElementById("mileage").value);
 
     if (!amount || !mileage) return;
 
-    if (lastMileage !== null) {
-        const distance = mileage - lastMileage;
-        const fuel = amount / price;
-        const efficiency = distance / fuel;
+    if (lastMileage > 0) {
+        let distance = mileage - lastMileage;
+        let fuel = amount / price;
+        let eff = distance / fuel;
 
-        document.getElementById("distance").innerText = distance + " km";
-        document.getElementById("efficiency").innerText = efficiency.toFixed(2) + " km/L";
+        document.getElementById("distance").innerText = "距離：" + distance + " km";
+        document.getElementById("efficiency").innerText = "油耗：" + eff.toFixed(2) + " km/L";
 
-        const today = getToday();
+        let today = getToday();
 
-        const index = records.findIndex(r => r.date === today);
-
-        if (index >= 0) {
-            records[index].value = efficiency;
-        } else {
-            records.push({
-                date: today,
-                value: efficiency
-            });
-        }
+        records.push({
+            date: today,
+            value: eff
+        });
 
         localStorage.setItem("records", JSON.stringify(records));
-
-        updateChart();
     }
 
     localStorage.setItem("lastMileage", mileage);
     lastMileage = mileage;
 
-    document.getElementById("amount").value = "";
+    updateChart();
 }
 
-/* ========= 啟動 ========= */
+// ⭐ 初始化
 updateChart();
 </script>
+
+</body>
+</html>
