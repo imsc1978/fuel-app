@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>油耗管理</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,15 +25,11 @@ body{
 
 .title{
   font-size:22px;
-  font-weight:bold;
   margin-bottom:12px;
 }
 
 /* Tabs */
-.tabs{
-  display:flex;
-  margin-bottom:12px;
-}
+.tabs{display:flex;margin-bottom:12px;}
 .tab{
   flex:1;
   padding:10px;
@@ -42,9 +38,7 @@ body{
   border-radius:10px;
   margin-right:6px;
 }
-.tab.active{
-  background:#2f6bff;
-}
+.tab.active{background:#2f6bff;}
 
 /* Card */
 .card{
@@ -55,32 +49,12 @@ body{
 }
 
 /* Grid */
-.grid3{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:10px;
-}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
 
-.grid2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-top:10px;
-}
+.group{display:flex;flex-direction:column;gap:4px;}
+label{font-size:13px;color:#aaa;}
 
-/* Label */
-.group{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-
-label{
-  font-size:13px;
-  color:#aaa;
-}
-
-/* Input（🔥重點：16px 防縮放） */
 input,select{
   width:100%;
   min-width:0;
@@ -89,10 +63,9 @@ input,select{
   border:none;
   background:#2c2c2e;
   color:#fff;
-  font-size:16px; /* 🔥關鍵 */
+  font-size:16px; /* 防縮放 */
 }
 
-/* Button */
 button{
   width:100%;
   padding:14px;
@@ -103,34 +76,19 @@ button{
   margin-top:10px;
 }
 
-.sub-btn{
-  background:#3a3a3c;
-}
+.sub-btn{background:#3a3a3c;}
 
-/* Result */
-.result{
-  font-size:16px;
-  line-height:1.6;
-}
+.result{line-height:1.6;}
 
-/* History */
 .item{
   padding:12px;
   border-bottom:1px solid #333;
 }
 
-/* Chart */
-.chart-wrap{
-  height:220px;
-}
-
-canvas{
-  width:100%!important;
-  height:100%!important;
-}
+.chart-wrap{height:220px;}
+canvas{width:100%!important;height:100%!important;}
 
 .hidden{display:none;}
-
 </style>
 </head>
 
@@ -141,47 +99,34 @@ canvas{
 <div class="title">⛽ 加油紀錄</div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('main')">紀錄</div>
-  <div class="tab" onclick="switchTab('history')">📋 歷史</div>
+  <div class="tab active" id="tabMain">紀錄</div>
+  <div class="tab" id="tabHistory">📋 歷史</div>
 </div>
 
 <!-- 主頁 -->
-<div id="main">
+<div id="mainPage">
 
 <div class="card">
 
   <div class="grid3">
-    <select id="source">
-      <option>中油</option>
-      <option>台塑</option>
-    </select>
-
-    <select id="type">
-      <option value="92">92</option>
-      <option value="95" selected>95</option>
-      <option value="98">98</option>
-      <option value="diesel">柴油</option>
-    </select>
-
+    <select id="source"></select>
+    <select id="type"></select>
     <input id="price">
   </div>
 
   <div class="grid2">
-
     <div class="group">
       <label>金額</label>
       <input id="amount" inputmode="decimal">
     </div>
-
     <div class="group">
       <label>總里程</label>
       <input id="km" inputmode="numeric">
     </div>
-
   </div>
 
-  <button onclick="save()">儲存</button>
-  <button class="sub-btn" onclick="deleteLast()">刪除最後一筆</button>
+  <button id="saveBtn">儲存</button>
+  <button class="sub-btn" id="deleteBtn">刪除最後一筆</button>
 
 </div>
 
@@ -197,7 +142,7 @@ canvas{
 </div>
 
 <!-- 歷史 -->
-<div id="history" class="hidden">
+<div id="historyPage" class="hidden">
   <div class="card" id="historyList"></div>
 </div>
 
@@ -205,104 +150,153 @@ canvas{
 
 <script>
 
-const mainPage = document.getElementById("main")
-const historyPage = document.getElementById("history")
+/* ====== DOM ====== */
+const mainPage = document.getElementById("mainPage")
+const historyPage = document.getElementById("historyPage")
 
-let records=JSON.parse(localStorage.getItem("fuel")||"[]")
-let chart=null
+const tabMain = document.getElementById("tabMain")
+const tabHistory = document.getElementById("tabHistory")
 
-function switchTab(tab){
+const sourceEl = document.getElementById("source")
+const typeEl = document.getElementById("type")
+const priceEl = document.getElementById("price")
 
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
+const amountEl = document.getElementById("amount")
+const kmEl = document.getElementById("km")
 
-  if(tab==="main"){
-    mainPage.classList.remove("hidden")
-    historyPage.classList.add("hidden")
-    document.querySelectorAll(".tab")[0].classList.add("active")
-  }else{
-    historyPage.classList.remove("hidden")
-    mainPage.classList.add("hidden")
-    document.querySelectorAll(".tab")[1].classList.add("active")
-  }
+const saveBtn = document.getElementById("saveBtn")
+const deleteBtn = document.getElementById("deleteBtn")
+
+const distanceEl = document.getElementById("distance")
+const kmplEl = document.getElementById("kmpl")
+
+/* ====== 資料 ====== */
+let records = JSON.parse(localStorage.getItem("fuel") || "[]")
+let chart = null
+
+const priceMap = {
+  "中油": {"92":30.2,"95":31.2,"98":33.2,"柴油":28},
+  "台塑": {"92":30,"95":31,"98":33,"柴油":27.8}
 }
 
-function today(){
-  let d=new Date()
-  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
+/* ====== 初始化選單 ====== */
+sourceEl.innerHTML = `<option>中油</option><option>台塑</option>`
+typeEl.innerHTML = `<option>92</option><option selected>95</option><option>98</option><option>柴油</option>`
+
+function updatePrice(){
+  priceEl.value = priceMap[sourceEl.value][typeEl.value]
 }
 
-function save(){
+sourceEl.onchange = updatePrice
+typeEl.onchange = updatePrice
+updatePrice()
 
-  let amount=parseFloat(amount.value)
-  let km=parseFloat(document.getElementById("km").value)
+/* ====== Tab ====== */
+tabMain.onclick = () => {
+  mainPage.classList.remove("hidden")
+  historyPage.classList.add("hidden")
+  tabMain.classList.add("active")
+  tabHistory.classList.remove("active")
+}
+
+tabHistory.onclick = () => {
+  historyPage.classList.remove("hidden")
+  mainPage.classList.add("hidden")
+  tabHistory.classList.add("active")
+  tabMain.classList.remove("active")
+}
+
+/* ====== 儲存 ====== */
+saveBtn.onclick = () => {
+
+  const amount = parseFloat(amountEl.value)
+  const km = parseFloat(kmEl.value)
+  const price = parseFloat(priceEl.value)
 
   if(!amount || !km){
-    alert("請輸入資料")
+    alert("請輸入完整資料")
     return
   }
 
-  let last=records.at(-1)
+  const last = records.at(-1)
 
-  if(last && km<=last.km){
+  if(last && km <= last.km){
     alert("里程需大於上一筆")
     return
   }
 
-  let dist=last?km-last.km:null
-  let kmpl=dist?dist/(amount/31.2):null
+  const dist = last ? km - last.km : 0
+  const kmpl = dist ? dist / (amount / price) : 0
 
   records.push({
-    date:today(),
+    date: new Date().toLocaleDateString(),
     km,
     kmpl
   })
 
-  localStorage.setItem("fuel",JSON.stringify(records))
+  localStorage.setItem("fuel", JSON.stringify(records))
 
-  amount.value=""
+  amountEl.value=""
 
   render()
 }
 
-function deleteLast(){
+/* ====== 刪除 ====== */
+deleteBtn.onclick = () => {
   if(!records.length) return
   records.pop()
-  localStorage.setItem("fuel",JSON.stringify(records))
+  localStorage.setItem("fuel", JSON.stringify(records))
   render()
 }
 
+/* ====== 渲染 ====== */
 function render(){
 
-  if(records.length>=2){
-    let last=records.at(-1)
-    let prev=records.at(-2)
+  if(records.length >= 2){
+    const last = records.at(-1)
+    const prev = records.at(-2)
 
-    distance.innerText=last.km-prev.km
-    kmpl.innerText=last.kmpl.toFixed(2)
+    distanceEl.innerText = last.km - prev.km
+    kmplEl.innerText = last.kmpl.toFixed(2)
   }
 
   renderHistory()
   drawChart()
 }
 
+/* ====== 歷史 ====== */
 function renderHistory(){
-
-  let html=""
-
-  records.slice().reverse().forEach((r,i)=>{
-    html+=`
-      <div class="item">
-        📅 ${r.date}｜${r.km} km
-      </div>
-    `
-  })
-
-  document.getElementById("historyList").innerHTML=html
+  historyList.innerHTML = records.map(r=>`
+    <div class="item">
+      ${r.date}｜${r.km} km
+    </div>
+  `).reverse().join("")
 }
 
+/* ====== 圖表 ====== */
 function drawChart(){
 
-  let labels=records.map(r=>r.date)
-  let data=records.map(r=>r.kmpl||0)
+  const labels = records.map(r=>r.date)
+  const data = records.map(r=>r.kmpl)
 
-  if(chart)
+  if(chart) chart.destroy()
+
+  chart = new Chart(document.getElementById("chart"),{
+    type:"bar",
+    data:{
+      labels,
+      datasets:[{data}]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true}}
+    }
+  })
+}
+
+render()
+
+</script>
+
+</body>
+</html>
