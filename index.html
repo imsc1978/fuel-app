@@ -191,7 +191,41 @@ button{
   </div>
 
 </div>
+// 油價對照表（你可以自己改）
+const priceMap = {
+  "中油": {
+    "92": 29.2,
+    "95": 31.2,
+    "98": 33.2
+  },
+  "台塑": {
+    "92": 29.0,
+    "95": 31.0,
+    "98": 33.0
+  }
+};
 
+// 取得元素
+const sourceEl = document.getElementById("source");
+const typeEl = document.getElementById("type");
+const priceEl = document.getElementById("price");
+
+/* 更新油價 */
+function updatePrice(){
+  const source = sourceEl.value;
+  const type = typeEl.value;
+
+  if(priceMap[source] && priceMap[source][type]){
+    priceEl.value = priceMap[source][type];
+  }
+}
+
+/* 綁定事件 */
+sourceEl.addEventListener("change", updatePrice);
+typeEl.addEventListener("change", updatePrice);
+
+/* 預設跑一次 */
+updatePrice();
 <!-- =========================
 📜 HISTORY PAGE
 ========================= -->
