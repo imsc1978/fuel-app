@@ -16,6 +16,10 @@ body{
   padding:16px;
 }
 
+h2{
+  margin-bottom:16px;
+}
+
 .card{
   background:#1c1c1e;
   padding:16px;
@@ -48,6 +52,10 @@ button{
   color:#fff;
   font-size:16px;
 }
+
+canvas{
+  max-height:220px;
+}
 </style>
 </head>
 
@@ -74,8 +82,8 @@ button{
   </div>
 
   <div class="row">
-    <input id="amount" placeholder="金額" type="number" inputmode="decimal">
-    <input id="km" placeholder="總里程" type="number" inputmode="numeric">
+    <input id="amount" placeholder="輸入金額" type="number" inputmode="decimal">
+    <input id="km" placeholder="輸入總里程" type="number" inputmode="numeric">
   </div>
 
   <button onclick="save()">儲存</button>
@@ -99,88 +107,6 @@ let priceMap={
 
 let records=JSON.parse(localStorage.getItem("fuel")||"[]")
 
-function updatePrice(){
-  let s=source.value
-  let t=type.value
-  price.value=priceMap[s][t]
-}
-
-source.onchange=updatePrice
-type.onchange=updatePrice
-updatePrice()
-
-function save(){
-
-  let amount=parseFloat(amountInput.value)
-  let km=parseFloat(kmInput.value)
-  let priceVal=parseFloat(price.value)
-
-  if(!amount||!km)return alert("請輸入完整")
-
-  let today=new Date().toISOString().slice(0,10)
-
-  let last=records.length?records[records.length-1]:null
-
-  let dist=null
-  let kmpl=null
-
-  if(last){
-    dist=km-last.km
-    let liter=amount/priceVal
-    kmpl=dist/liter
-  }
-
-  records.push({
-    date:today,
-    km:km,
-    kmpl:kmpl
-  })
-
-  localStorage.setItem("fuel",JSON.stringify(records))
-
-  render()
-}
-
-function render(){
-
-  if(records.length<2){
-    distance.innerText="-"
-    kmpl.innerText="-"
-  }else{
-    let last=records[records.length-1]
-    let prev=records[records.length-2]
-
-    let dist=last.km-prev.km
-    distance.innerText=dist
-
-    kmpl.innerText=last.kmpl.toFixed(2)
-  }
-
-  drawChart()
-}
-
-function drawChart(){
-
-  let labels=[]
-  let data=[]
-
-  records.forEach(r=>{
-    labels.push(r.date.slice(5))
-    data.push(r.kmpl||0)
-  })
-
-  new Chart(chart,{
-    type:"bar",
-    data:{
-      labels:labels,
-      datasets:[{
-        label:"km/L",
-        data:data
-      }]
-    }
-  })
-}
-
 let amountInput=document.getElementById("amount")
 let kmInput=document.getElementById("km")
 let source=document.getElementById("source")
@@ -188,7 +114,121 @@ let type=document.getElementById("type")
 let price=document.getElementById("price")
 let distance=document.getElementById("distance")
 let kmpl=document.getElementById("kmpl")
-let chart=document.getElementById("chart")
+let chartEl=document.getElementById("chart")
+
+let chartInstance=null
+
+// 更新油價
+function updatePrice(){
+  price.value = priceMap[source.value][type.value]
+}
+
+source.onchange=updatePrice
+type.onchange=updatePrice
+updatePrice()
+
+// 儲存
+function save(){
+
+  let amount=parseFloat(amountInput.value)
+  let km=parseFloat(kmInput.value)
+  let priceVal=parseFloat(price.value)
+
+  if(!amount || !km){
+    alert("請輸入完整資料")
+    return
+  }
+
+  let last=records.length ? records[records.length-1] : null
+
+  // 🚨 防呆：里程不能倒退
+  if(last && km <= last.km){
+    alert(`里程錯誤\n目前輸入：${km}\n上一筆：${last.km}`)
+    return
+  }
+
+  let today=new Date().toISOString().slice(0,10)
+
+  let dist=null
+  let kmplVal=null
+
+  if(last){
+    dist=km-last.km
+    let liter=amount/priceVal
+    kmplVal=dist/liter
+  }
+
+  records.push({
+    date:today,
+    km:km,
+    kmpl:kmplVal
+  })
+
+  localStorage.setItem("fuel",JSON.stringify(records))
+
+  render()
+}
+
+// 畫面更新
+function render(){
+
+  if(records.length < 2){
+    distance.innerText = "-"
+    kmpl.innerText = "-"
+  }else{
+    let last = records[records.length-1]
+    let prev = records[records.length-2]
+
+    let dist = last.km - prev.km
+    distance.innerText = dist
+    kmpl.innerText = last.kmpl.toFixed(2)
+  }
+
+  // 自動帶入上一筆里程
+  if(records.length){
+    kmInput.value = records[records.length-1].km
+  }
+
+  drawChart()
+}
+
+// 圖表
+function drawChart(){
+
+  let labels=[]
+  let data=[]
+
+  records.forEach((r,i)=>{
+    labels.push(r.date.slice(5))
+    data.push(r.kmpl || null)
+  })
+
+  // 避免重疊
+  if(chartInstance){
+    chartInstance.destroy()
+  }
+
+  chartInstance = new Chart(chartEl,{
+    type:"bar",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"km/L",
+        data:data
+      }]
+    },
+    options:{
+      plugins:{
+        legend:{display:false}
+      },
+      scales:{
+        y:{
+          beginAtZero:true
+        }
+      }
+    }
+  })
+}
 
 render()
 
