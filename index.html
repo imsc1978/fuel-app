@@ -317,15 +317,19 @@ document.getElementById("saveBtn").onclick = ()=>{
   record.eff = r.eff;
 
   data.push(record);
-  saveData(data);
+saveData(data);
 
-  updateUI(r.distance, r.eff);
-  drawChart();
+updateUI(result.distance, result.eff);
+drawChart();
 
+/* ⭐ 保留里程 */
 mileageEl.value = record.mileage;
 
-amountEl.value="";
-  mileageEl.value="";
+/* ⭐ 清空金額 */
+amountEl.value = "";
+
+/* ⭐ 可選：自動 focus */
+amountEl.focus();
 };
 
 /* ================= TABS ================= */
