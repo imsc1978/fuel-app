@@ -5,7 +5,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>加油紀錄</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+/* Chart.js 載入失敗時的錯誤提示 */
+window.onerror = function(msg,src,line,col,err){
+  if(src && src.includes('chart')){
+    document.body.innerHTML='<div style="color:#ff6b6b;padding:20px">Chart.js 載入失敗，請確認網路連線後重新開啟</div>';
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <style>
 html{background:#000;}
 body{
@@ -163,6 +171,65 @@ cursor:pointer;margin-top:0;
 }
 .btn-cancel{ background:#333;color:#fff; }
 .btn-save-edit{ background:#4da3ff;color:#fff; }
+
+/* ===== 下拉更新 ===== */
+.pull-indicator{
+text-align:center;
+font-size:13px;
+color:#aaa;
+height:0;
+overflow:hidden;
+transition:height 0.2s;
+display:flex;align-items:center;justify-content:center;
+gap:6px;
+}
+.pull-indicator.pulling{ height:44px; }
+.pull-indicator.refreshing{ height:44px; color:#4da3ff; }
+.spin{
+display:inline-block;
+animation:spin 0.8s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* ===== 歷史格式 ===== */
+.item-row1{
+display:flex;
+justify-content:space-between;
+align-items:center;
+font-size:14px;
+font-weight:500;
+}
+.item-date{ color:#fff; }
+.item-price-tag{
+font-size:12px;
+color:#4da3ff;
+background:rgba(77,163,255,0.15);
+padding:2px 8px;
+border-radius:6px;
+}
+.item-row2{
+display:flex;
+justify-content:space-between;
+margin-top:5px;
+font-size:13px;
+color:#aaa;
+}
+.item-row3{
+display:flex;
+justify-content:space-between;
+margin-top:3px;
+font-size:12px;
+color:#666;
+border-top:1px solid #2a2a2a;
+padding-top:5px;
+margin-top:6px;
+}
+.item-eff{
+color:#51cf66;
+font-weight:600;
+}
+.item-eff.bad{ color:#ff6b6b; }
+.item-eff.mid{ color:#ffd43b; }
 </style>
 
 </head>
@@ -170,6 +237,7 @@ cursor:pointer;margin-top:0;
 <body>
 <div class="container">
 
+<div class="pull-indicator" id="pullRecord">↓ 下拉更新</div>
 <h2>⛽ 加油紀錄</h2>
 
 <div class="tabs">
@@ -219,6 +287,15 @@ cursor:pointer;margin-top:0;
   </div>
 
   <div class="card">
+    <div id="chartControls" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <button id="prevBtn" onclick="shiftChart(-1)" style="width:auto;padding:6px 14px;margin:0;font-size:13px;border-radius:8px;background:#333;">◀</button>
+      <span id="chartLabel" style="font-size:13px;color:#aaa;"></span>
+      <button id="nextBtn" onclick="shiftChart(1)" style="width:auto;padding:6px 14px;margin:0;font-size:13px;border-radius:8px;background:#333;">▶</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button id="modeWeek" onclick="setChartMode('week')" style="flex:1;padding:7px;margin:0;font-size:12px;border-radius:8px;background:#4da3ff;">週</button>
+      <button id="modeMonth" onclick="setChartMode('month')" style="flex:1;padding:7px;margin:0;font-size:12px;border-radius:8px;background:#333;">月</button>
+    </div>
     <canvas id="chart"></canvas>
   </div>
 </div>
@@ -226,6 +303,7 @@ cursor:pointer;margin-top:0;
 <!-- ===== 歷史頁 ===== -->
 
 <div id="historyPage" class="hidden">
+  <div class="pull-indicator" id="pullHistory">↓ 下拉更新</div>
   <div id="historyList" class="card"></div>
 </div>
 
@@ -395,28 +473,77 @@ const totalLabelPlugin = {
   }
 };
 
+/* 本地日期工具 */
+function localDateStr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function mmdd(d){ return String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
 let chart;
+let chartMode = "week"; // "week" | "month"
+let chartOffset = 0;   // 0=本週/本月, -1=上週/上月
+
+function setChartMode(mode){
+  chartMode = mode;
+  chartOffset = 0;
+  document.getElementById("modeWeek").style.background  = mode==="week" ? "#4da3ff" : "#333";
+  document.getElementById("modeMonth").style.background = mode==="month" ? "#4da3ff" : "#333";
+  drawChart();
+}
+
+function shiftChart(dir){
+  chartOffset += dir;
+  // 不能往未來移
+  if(chartOffset > 0) chartOffset = 0;
+  drawChart();
+}
+
 function drawChart(){
-  const data = getData();
+  if(typeof Chart === "undefined"){
+    document.getElementById("chart").insertAdjacentHTML("afterend","<div style='color:#ff6b6b;font-size:13px;margin-top:8px'>⚠️ 圖表需要網路連線才能顯示</div>");
+    return;
+  }
+  const allData = getData();
   if(chart) chart.destroy();
 
   const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate()+(day===0?-6:1-day));
+  let labels = [], startDate, endDate;
 
-  const labels=[], dateMap={};
-  for(let i=0;i<7;i++){
-    const d = new Date(monday);
-    d.setDate(monday.getDate()+i);
-    const key = d.toISOString().slice(5,10);
-    labels.push(key);
-    dateMap[key]=[];
+  if(chartMode === "week"){
+    // 找本週一，再加 offset*7
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + (day===0?-6:1-day) + chartOffset*7);
+    startDate = monday;
+    for(let i=0;i<7;i++){
+      const d = new Date(monday);
+      d.setDate(monday.getDate()+i);
+      labels.push(mmdd(d));
+    }
+    endDate = new Date(monday); endDate.setDate(monday.getDate()+6);
+    const s=mmdd(monday), e=mmdd(endDate);
+    document.getElementById("chartLabel").textContent = s+" ～ "+e;
+  } else {
+    // 月模式
+    const y = now.getFullYear(), m = now.getMonth() + chartOffset;
+    const base = new Date(y, m, 1);
+    const daysInMonth = new Date(base.getFullYear(), base.getMonth()+1, 0).getDate();
+    startDate = base;
+    for(let i=1;i<=daysInMonth;i++){
+      const d = new Date(base.getFullYear(), base.getMonth(), i);
+      labels.push(mmdd(d));
+    }
+    document.getElementById("chartLabel").textContent = base.getFullYear()+"年"+(base.getMonth()+1)+"月";
   }
 
-  data.forEach(d=>{
-    const key = d.date.slice(5,10);
-    if(dateMap[key]!==undefined) dateMap[key].push(d);
+  // ▶ 按鈕：本週/本月不能再往右
+  document.getElementById("nextBtn").style.opacity = chartOffset >= 0 ? "0.3" : "1";
+
+  // 建立 dateMap（用 MM-DD 對應）
+  const dateMap = {};
+  labels.forEach(l=>{ dateMap[l]=[]; });
+
+  allData.forEach(d=>{
+    const key = d.date.slice(5,10); // MM-DD
+    if(dateMap[key] !== undefined) dateMap[key].push(d);
   });
 
   const datasets=[];
@@ -435,25 +562,64 @@ function drawChart(){
     });
   });
 
-  const effByDate={};
-  data.forEach(d=>{ const k=d.date.slice(5,10); if(d.eff) effByDate[k]=d.eff; });
+  /* [修正] 折線：同一天多筆取平均eff，確保有資料就顯示 */
+  const effByDate={}, effCount={};
+  allData.forEach(d=>{
+    const k=d.date.slice(5,10);
+    if(d.eff && d.eff>0){
+      effByDate[k]=(effByDate[k]||0)+d.eff;
+      effCount[k]=(effCount[k]||0)+1;
+    }
+  });
+  // 取平均
+  Object.keys(effByDate).forEach(k=>{ effByDate[k]=effByDate[k]/effCount[k]; });
+
+  const effValues = labels.map(d=>effByDate[d]||null);
+  const validEff = effValues.filter(v=>v!==null);
+  const minEff = validEff.length ? Math.min(...validEff)*0.95 : 0;
+  const maxEff = validEff.length ? Math.max(...validEff)*1.05 : 50;
+
   datasets.push({
     type:"line",
-    data:labels.map(d=>effByDate[d]||null),
-    borderColor:"#fff", backgroundColor:"transparent",
-    borderWidth:2, tension:0.3, pointRadius:4,
-    spanGaps:true, yAxisID:"y1", label:"油耗(km/L)"
+    data:effValues,
+    borderColor:"#fff",
+    backgroundColor:"rgba(255,255,255,0.1)",
+    borderWidth:2,
+    tension:0.3,
+    pointRadius:4,
+    pointBackgroundColor:"#fff",
+    spanGaps:true,
+    yAxisID:"y1",
+    label:"油耗(km/L)",
+    order:0
   });
 
   chart = new Chart(chartEl,{
     data:{ labels, datasets },
     options:{
       responsive:true,
+      animation:{ duration:300 },
       plugins:{ legend:{display:false} },
       scales:{
-        x:{ stacked:true },
-        y:{ stacked:true, title:{display:true,text:"加油量(L)",color:"#aaa"} },
-        y1:{ position:"right", grid:{drawOnChartArea:false}, title:{display:true,text:"km/L",color:"#aaa"} }
+        x:{
+          stacked:true,
+          ticks:{ color:"#aaa", maxRotation:45, font:{size:10} },
+          grid:{ color:"#2a2a2a" }
+        },
+        y:{
+          stacked:true,
+          title:{display:true,text:"加油量(L)",color:"#aaa"},
+          ticks:{color:"#aaa"},
+          grid:{color:"#2a2a2a"}
+        },
+        y1:{
+          position:"right",
+          min: minEff,
+          max: maxEff,
+          grid:{drawOnChartArea:false},
+          title:{display:true,text:"km/L",color:"#aaa"},
+          ticks:{color:"#aaa", callback:v=>v.toFixed(1)}
+        }
       }
     },
     plugins:[totalLabelPlugin]
@@ -476,7 +642,11 @@ function renderHistory(){
 
   reversed.forEach(d=>{
     const liter = d.liter ? d.liter.toFixed(2) : (d.price?(d.amount/d.price).toFixed(2):"--");
-    const eff   = d.eff && d.eff > 0 ? d.eff.toFixed(2) : "--";
+    const eff   = d.eff && d.eff > 0 ? d.eff.toFixed(2) : null;
+    let effClass = "item-eff";
+    if(eff){ const v=parseFloat(eff); effClass += v>=30?" ":" mid"+(v>=20?"":" bad").replace(" ",""); }
+    // 油耗顏色：>=30綠、>=20黃、<20紅
+    const effColor = eff ? (parseFloat(eff)>=30?"#51cf66":parseFloat(eff)>=20?"#ffd43b":"#ff6b6b") : "#666";
 
     const wrap = document.createElement("div");
     wrap.className="item-wrap";
@@ -484,9 +654,18 @@ function renderHistory(){
     wrap.innerHTML=`
       <div class="item-delete-bg">刪除</div>
       <div class="item" data-idx="${d._origIdx}">
-        <div>${d.date}　${Number(d.mileage).toLocaleString()} km</div>
-        <div style="color:#aaa;font-size:12px;margin-top:3px">
-          $${d.amount} ／ ${liter}L ／ ${d.price}元/L ／ 油耗：${eff} km/L
+        <div class="item-row1">
+          <span class="item-date">${d.date}</span>
+          <span class="item-price-tag">${d.price} 元/L</span>
+        </div>
+        <div class="item-row2">
+          <span>💰 $${d.amount}</span>
+          <span>⛽ ${liter} L</span>
+          <span>📍 ${Number(d.mileage).toLocaleString()} km</span>
+        </div>
+        <div class="item-row3">
+          <span style="color:#aaa">總里程 ${Number(d.mileage).toLocaleString()} km</span>
+          <span style="color:${effColor};font-weight:600">油耗 ${eff ? eff+" km/L" : "--"}</span>
         </div>
       </div>`;
 
@@ -617,6 +796,50 @@ tabHistory.onclick=()=>{
   renderHistory();
 };
 
+/* ===== 下拉更新 ===== */
+function setupPullRefresh(pullElId, onRefresh){
+  const el = document.getElementById(pullElId);
+  let startY=0, pulling=false, threshold=60;
+
+  document.addEventListener("touchstart", e=>{
+    // 只有捲到頂才觸發
+    if(window.scrollY > 10) return;
+    startY = e.touches[0].clientY;
+    pulling = true;
+  }, {passive:true});
+
+  document.addEventListener("touchmove", e=>{
+    if(!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if(dy > 10 && window.scrollY <= 0){
+      el.textContent = dy > threshold ? "↑ 放開更新" : "↓ 繼續下拉";
+      el.classList.add("pulling");
+      el.classList.remove("refreshing");
+    }
+  }, {passive:true});
+
+  document.addEventListener("touchend", e=>{
+    if(!pulling) return;
+    pulling = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    if(dy > threshold && window.scrollY <= 0){
+      el.innerHTML = '<span class="spin">⟳</span> 更新中…';
+      el.classList.add("refreshing");
+      el.classList.remove("pulling");
+      setTimeout(()=>{
+        onRefresh();
+        el.classList.remove("refreshing","pulling");
+        el.textContent = "↓ 下拉更新";
+        el.style.height="0";
+        setTimeout(()=>{ el.classList.remove("pulling","refreshing"); }, 300);
+      }, 600);
+    } else {
+      el.classList.remove("pulling","refreshing");
+      el.textContent = "↓ 下拉更新";
+    }
+  }, {passive:true});
+}
+
 /* ===== INIT ===== */
 function init(){
   updatePrice();
@@ -630,6 +853,16 @@ typeEl.onchange   = updatePrice;
 priceEl.oninput   = autoCalcLiter;
 
 init();
+
+// 主頁下拉更新
+setupPullRefresh("pullRecord", ()=>{
+  drawChart();
+  const data = getData();
+  if(data.length){ const last=data[data.length-1]; updateUI(last.distance||0, last.eff||0); }
+});
+
+// 歷史頁下拉更新
+setupPullRefresh("pullHistory", ()=>{ renderHistory(); });
 </script>
 
 </body>
