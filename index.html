@@ -81,6 +81,12 @@ button{
 .hidden{
   display:none;
 }
+
+.detail{
+  font-size:14px;
+  color:#aaa;
+  margin-top:10px;
+}
 </style>
 </head>
 
@@ -147,6 +153,7 @@ button{
 
 <div class="card">
 <canvas id="chart"></canvas>
+<div id="detail" class="detail"></div>
 </div>
 
 </div>
@@ -161,22 +168,33 @@ button{
 
 let records = JSON.parse(localStorage.getItem("fuel")||"[]")
 
-// 🔥 台灣時間日期
-function getToday(){
-  const now = new Date()
-  const tzOffset = now.getTimezoneOffset() * 60000
-  const local = new Date(now - tzOffset)
-  return local.toISOString().slice(0,10)
+function getLocalDate(){
+  const d = new Date()
+  const tz = d.getTimezoneOffset()*60000
+  return new Date(d - tz).toISOString().slice(0,10)
 }
 
-// 🔥 修正舊資料
-records = records.map(r=>{
-  const d = new Date(r.date)
-  return {
-    ...r,
-    date: new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10)
+// 👉 取得「本週一 ~ 週日」
+function getWeekDays(){
+  const today = new Date()
+  const day = today.getDay() || 7 // Sunday=7
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - day + 1)
+
+  const days = []
+
+  for(let i=0;i<7;i++){
+    const d = new Date(monday)
+    d.setDate(monday.getDate()+i)
+
+    const tz = d.getTimezoneOffset()*60000
+    const local = new Date(d - tz)
+
+    days.push(local.toISOString().slice(0,10))
   }
-})
+
+  return days
+}
 
 const priceMap={
   "92":29.2,
@@ -217,7 +235,7 @@ function save(){
   }
 
   records.push({
-    date: getToday(),
+    date: getLocalDate(),
     km,
     kmpl
   })
@@ -248,7 +266,8 @@ function update(){
 function drawChart(){
 
   if(chart) chart.destroy()
-  if(!records.length) return
+
+  const days = getWeekDays()
 
   const grouped = {}
 
@@ -257,24 +276,63 @@ function drawChart(){
     grouped[r.date].push(r)
   })
 
-  const dates = Object.keys(grouped)
-
-  const max = Math.max(...dates.map(d=>grouped[d].length))
+  const max = Math.max(
+    1,
+    ...Object.values(grouped).map(v=>v.length)
+  )
 
   const datasets = []
 
   for(let i=0;i<max;i++){
     datasets.push({
       label:`第${i+1}次`,
-      data: dates.map(d=>grouped[d][i]?.kmpl || 0),
+      data: days.map(d=>grouped[d]?.[i]?.kmpl || 0),
       backgroundColor:`hsl(${i*60},70%,60%)`
     })
   }
 
+  // 👉 平均線
+  const avg = records.length
+    ? records.reduce((a,b)=>a+b.kmpl,0)/records.length
+    : 0
+
+  datasets.push({
+    type:"line",
+    label:"平均",
+    data: days.map(()=>avg),
+    borderColor:"#fff",
+    borderWidth:1,
+    pointRadius:0
+  })
+
   chart = new Chart(document.getElementById("chart"),{
     type:"bar",
-    data:{labels:dates,datasets},
+    data:{
+      labels: days.map(d=>d.slice(5)),
+      datasets
+    },
     options:{
+      responsive:true,
+      plugins:{
+        tooltip:{
+          callbacks:{
+            label:(ctx)=>{
+              return ctx.dataset.label + "：" + ctx.raw.toFixed(2)
+            }
+          }
+        }
+      },
+      onClick:(e,els)=>{
+        if(!els.length) return
+        const index = els[0].index
+        const date = days[index]
+
+        const list = grouped[date] || []
+
+        detail.innerHTML = list.length
+          ? list.map((r,i)=>`第${i+1}次：${r.kmpl.toFixed(2)} km/L`).join("<br>")
+          : "當天沒有資料"
+      },
       scales:{
         x:{stacked:true},
         y:{stacked:true}
