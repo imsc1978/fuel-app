@@ -1,23 +1,36 @@
 <script>
 const price = 31.2;
 
-// ⭐ 安全讀資料（避免舊資料爆炸）
-let raw = JSON.parse(localStorage.getItem("records") || "[]");
+/* ========= 安全讀資料 ========= */
+let raw = [];
+try {
+    raw = JSON.parse(localStorage.getItem("records") || "[]");
+} catch (e) {
+    raw = [];
+}
 
-let records = raw.map(r => {
-    if (typeof r === "number") {
-        return null; // 舊資料丟掉
-    }
-    return r;
-}).filter(Boolean);
+/* ========= 自動修復舊資料 ========= */
+let records = raw
+    .map(r => {
+        if (typeof r === "number") {
+            return null; // 舊格式直接丟掉
+        }
+        if (!r || !r.date) return null;
+        return {
+            date: r.date,
+            value: Number(r.value)
+        };
+    })
+    .filter(r => r && !isNaN(r.value));
 
-// 里程
+/* ========= 里程 ========= */
 let lastMileage = localStorage.getItem("lastMileage");
 if (lastMileage !== null) {
     lastMileage = parseFloat(lastMileage);
     document.getElementById("mileage").value = lastMileage;
 }
 
+/* ========= 日期工具 ========= */
 function getToday() {
     return new Date().toISOString().split("T")[0];
 }
@@ -30,26 +43,25 @@ function getWeekLabel(dateStr) {
 
 function getLast7Days() {
     let arr = [];
+
     for (let i = 6; i >= 0; i--) {
         let d = new Date();
         d.setDate(d.getDate() - i);
+
         let str = d.toISOString().split("T")[0];
 
         let found = records.find(r => r.date === str);
 
         arr.push({
             date: str,
-            value: found ? rValue(found.value) : null
+            value: found ? Number(found.value) : null
         });
     }
+
     return arr;
 }
 
-// ⭐ 保證數字
-function rValue(v) {
-    return typeof v === "string" ? parseFloat(v) : v;
-}
-
+/* ========= 建立圖表 ========= */
 const ctx = document.getElementById('chart').getContext('2d');
 
 let chart = new Chart(ctx, {
@@ -70,6 +82,7 @@ let chart = new Chart(ctx, {
     }
 });
 
+/* ========= 更新圖 ========= */
 function updateChart() {
     const weekData = getLast7Days();
 
@@ -79,6 +92,7 @@ function updateChart() {
     chart.update();
 }
 
+/* ========= 儲存 ========= */
 function saveData() {
     const amount = parseFloat(document.getElementById("amount").value);
     const mileage = parseFloat(document.getElementById("mileage").value);
@@ -117,6 +131,6 @@ function saveData() {
     document.getElementById("amount").value = "";
 }
 
-// 初始化
+/* ========= 啟動 ========= */
 updateChart();
 </script>
