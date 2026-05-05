@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -12,29 +12,45 @@ body{
   color:#fff;
   font-family:-apple-system;
 }
+
 .container{
   padding:16px;
-  max-width:500px;
+  max-width:520px;
   margin:auto;
 }
+
 .card{
   background:#1c1c1e;
   border-radius:16px;
   padding:16px;
   margin-top:16px;
 }
+
 .row{
   display:flex;
-  gap:8px;
+  gap:12px;
+  margin-bottom:12px;
 }
-input,select{
+
+.field{
   flex:1;
+}
+
+.label{
+  font-size:13px;
+  color:#aaa;
+  margin-bottom:4px;
+}
+
+input,select{
+  width:100%;
   padding:12px;
   border:none;
   border-radius:10px;
   background:#2c2c2e;
   color:#fff;
 }
+
 button{
   width:100%;
   padding:14px;
@@ -43,17 +59,21 @@ button{
   background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
 }
+
 .tab{
   display:flex;
   gap:10px;
 }
+
 .tab button{
   flex:1;
   background:#2c2c2e;
 }
+
 .active{
   background:#3b6cff!important;
 }
+
 .hidden{
   display:none;
 }
@@ -76,23 +96,39 @@ button{
 <div class="card">
 
 <div class="row">
-  <select id="source">
-    <option>中油</option>
-    <option>台塑</option>
-  </select>
+  <div class="field">
+    <div class="label">油品來源</div>
+    <select id="source">
+      <option>中油</option>
+      <option>台塑</option>
+    </select>
+  </div>
 
-  <select id="fuel">
-    <option value="92">92</option>
-    <option value="95" selected>95</option>
-    <option value="98">98</option>
-  </select>
+  <div class="field">
+    <div class="label">油種</div>
+    <select id="fuel">
+      <option value="92">92</option>
+      <option value="95" selected>95</option>
+      <option value="98">98</option>
+    </select>
+  </div>
 
-  <input id="priceInput" type="number">
+  <div class="field">
+    <div class="label">油價</div>
+    <input id="priceInput" type="number">
+  </div>
 </div>
 
 <div class="row">
-  <input id="amountInput" placeholder="金額" type="number">
-  <input id="kmInput" placeholder="總里程" type="number">
+  <div class="field">
+    <div class="label">金額</div>
+    <input id="amountInput" type="number">
+  </div>
+
+  <div class="field">
+    <div class="label">總里程</div>
+    <input id="kmInput" type="number">
+  </div>
 </div>
 
 <button onclick="save()">儲存</button>
@@ -127,12 +163,7 @@ const priceMap={
   "98":33.2
 }
 
-const fuel = document.getElementById("fuel")
-const priceInput = document.getElementById("priceInput")
-const amountInput = document.getElementById("amountInput")
-const kmInput = document.getElementById("kmInput")
-
-fuel.onchange = ()=>{
+fuel.onchange=()=>{
   priceInput.value = priceMap[fuel.value]
 }
 priceInput.value = 31.2
@@ -148,23 +179,20 @@ function save(){
     return
   }
 
-  if(records.length){
-    if(km < records[records.length-1].km){
-      alert("里程不能倒退")
-      return
-    }
+  if(records.length && km < records.at(-1).km){
+    alert("里程不能倒退")
+    return
   }
 
   const liter = amount / price
 
   let kmpl = 0
   if(records.length){
-    const last = records[records.length-1].km
-    kmpl = (km - last) / liter
+    kmpl = (km - records.at(-1).km) / liter
   }
 
   records.push({
-    date: new Date().toISOString().slice(0,10), // 🔥 統一格式
+    date: new Date().toISOString().slice(0,10), // 🔥唯一格式
     km,
     kmpl
   })
@@ -185,14 +213,14 @@ function update(){
     return
   }
 
-  const last = records[records.length-1]
-  const prev = records[records.length-2]
+  const last = records.at(-1)
+  const prev = records.at(-2)
 
   distance.innerText = last.km - prev.km
   kmpl.innerText = last.kmpl.toFixed(2)
 }
 
-// 🔥 真正堆疊版本（修正版）
+// 🔥 真正同一天堆疊
 function drawChart(){
 
   if(chart) chart.destroy()
@@ -201,12 +229,11 @@ function drawChart(){
   const grouped = {}
 
   records.forEach(r=>{
-    const d = r.date
-    if(!grouped[d]) grouped[d] = []
-    grouped[d].push(r)
+    if(!grouped[r.date]) grouped[r.date]=[]
+    grouped[r.date].push(r)
   })
 
-  const dates = Object.keys(grouped).sort()
+  const dates = Object.keys(grouped)
 
   const max = Math.max(...dates.map(d=>grouped[d].length))
 
@@ -214,24 +241,16 @@ function drawChart(){
 
   for(let i=0;i<max;i++){
     datasets.push({
-      label: `第${i+1}次`,
-      data: dates.map(d=>{
-        return grouped[d][i] ? grouped[d][i].kmpl : null
-      }),
+      label:`第${i+1}次`,
+      data: dates.map(d=>grouped[d][i]?.kmpl || 0),
       backgroundColor:`hsl(${i*60},70%,60%)`
     })
   }
 
   chart = new Chart(document.getElementById("chart"),{
     type:"bar",
-    data:{
-      labels:dates,
-      datasets
-    },
+    data:{labels:dates,datasets},
     options:{
-      plugins:{
-        legend:{labels:{color:"#aaa"}}
-      },
       scales:{
         x:{stacked:true},
         y:{stacked:true}
