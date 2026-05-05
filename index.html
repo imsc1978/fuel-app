@@ -11,12 +11,14 @@ body {
     background: #0b0b0b;
     color: #fff;
     margin: 0;
-    padding: 16px;
+    display: flex;
+    justify-content: center;
 }
 
-h1 {
-    font-size: 22px;
-    margin-bottom: 10px;
+.app {
+    width: 100%;
+    max-width: 420px;
+    padding: 16px;
 }
 
 /* 卡片 */
@@ -25,11 +27,10 @@ h1 {
     padding: 16px;
     border-radius: 18px;
     margin-top: 14px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
 
 /* 輸入 */
-input {
+input, select {
     width: 100%;
     padding: 14px;
     margin-top: 10px;
@@ -38,7 +39,6 @@ input {
     background: #2c2c2e;
     color: white;
     font-size: 16px;
-    box-sizing: border-box;
 }
 
 /* 按鈕 */
@@ -48,77 +48,101 @@ button {
     padding: 14px;
     border-radius: 12px;
     border: none;
-    font-size: 16px;
     background: linear-gradient(90deg,#00c6ff,#0072ff);
     color: white;
-    transition: 0.2s;
+    font-size: 16px;
 }
 
-button:active {
-    transform: scale(0.97);
+/* 圖表區 */
+.chartWrap {
+    position: relative;
 }
 
-/* 主資訊 */
-.mainStat {
-    text-align: center;
-}
-
-.big {
-    font-size: 40px;
-    font-weight: bold;
-}
-
-.sub {
+.chartOverlay {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 14px;
+    text-align: right;
     color: #aaa;
 }
 
-/* 圖表縮小 */
-canvas {
-    height: 200px !important;
+.big {
+    font-size: 22px;
+    color: #fff;
 }
 </style>
 </head>
 
 <body>
+<div class="app">
 
-<h1>⛽ 加油紀錄</h1>
+<h2>⛽ 加油紀錄</h2>
 
-<!-- 主卡 -->
-<div class="card mainStat">
-    <div class="sub">本週平均油耗</div>
-    <div class="big" id="weekAvg">- km/L</div>
-</div>
-
-<!-- 輸入 -->
 <div class="card">
-    <div>油價：31.2 元/L</div>
+
+    <!-- 油品來源 -->
+    <select id="brand" onchange="updatePrice()">
+        <option value="cpc">中油</option>
+        <option value="fpcc">台塑</option>
+    </select>
+
+    <!-- 油種 -->
+    <select id="type" onchange="updatePrice()">
+        <option value="92">92</option>
+        <option value="95" selected>95</option>
+        <option value="diesel">柴油</option>
+    </select>
+
+    <div id="priceText">油價：31.2 元/L</div>
+
     <input id="money" type="number" inputmode="decimal" placeholder="輸入金額">
     <input id="km" type="number" inputmode="decimal" placeholder="輸入里程">
+
     <button onclick="save()">儲存</button>
 </div>
 
-<!-- 即時 -->
 <div class="card">
-    <div>距離</div>
-    <div class="big" id="distance">0 km</div>
-    <div class="sub">平均油耗</div>
-    <div class="big" id="consumption">- km/L</div>
+    <div>距離： <span id="distance">0</span> km</div>
+    <div>油耗： <span id="consumption">-</span> km/L</div>
 </div>
 
-<!-- 圖表 -->
-<div class="card">
+<div class="card chartWrap">
+    <div class="chartOverlay">
+        平均油耗<br>
+        <span class="big" id="weekAvg">- km/L</span>
+    </div>
     <canvas id="chart"></canvas>
 </div>
 
+</div>
+
 <script>
-const price = 31.2;
 let records = JSON.parse(localStorage.getItem("fuelRecords") || "[]");
 
-function getToday() {
+const priceTable = {
+    cpc: { "92": 29.2, "95": 31.2, "diesel": 27.5 },
+    fpcc:{ "92": 29.0, "95": 31.0, "diesel": 27.3 }
+};
+
+let price = 31.2;
+
+// 👉 更新油價
+function updatePrice(){
+    let brand = document.getElementById("brand").value;
+    let type = document.getElementById("type").value;
+
+    price = priceTable[brand][type];
+    document.getElementById("priceText").innerText = `油價：${price} 元/L`;
+}
+
+// 👉 今日
+function getToday(){
     return new Date().toISOString().split("T")[0];
 }
 
-function getWeekDays() {
+// 👉 週資料
+function getWeek(){
     let today = new Date();
     let day = today.getDay();
 
@@ -126,124 +150,110 @@ function getWeekDays() {
     let diff = day === 0 ? -6 : 1 - day;
     monday.setDate(today.getDate() + diff);
 
-    let result = [];
+    let arr = [];
 
-    for (let i = 0; i < 7; i++) {
+    for(let i=0;i<7;i++){
         let d = new Date(monday);
-        d.setDate(monday.getDate() + i);
+        d.setDate(monday.getDate()+i);
 
-        let dateStr = d.toISOString().split("T")[0];
+        let ds = d.toISOString().split("T")[0];
 
-        let sameDay = records.filter(r => r.date === dateStr);
+        let same = records.filter(r=>r.date===ds);
 
-        let totalValue = 0;
-        let totalDist = 0;
-
-        sameDay.forEach(r => {
-            totalValue += r.value;
-            totalDist += r.distance;
+        let dist=0,val=0;
+        same.forEach(r=>{
+            dist+=r.distance;
+            val+=r.value;
         });
 
-        let avg = totalValue > 0 ? totalDist / totalValue : null;
+        let avg = val>0 ? dist/val : null;
 
-        result.push({
-            date: dateStr,
-            value: avg
-        });
+        arr.push({date:ds,value:avg});
     }
-
-    return result;
+    return arr;
 }
 
-function save() {
-    let money = parseFloat(document.getElementById("money").value);
-    let km = parseFloat(document.getElementById("km").value);
+// 👉 儲存
+function save(){
+    let m = parseFloat(money.value);
+    let k = parseFloat(km.value);
+    if(!m||!k)return;
 
-    if (!money || !km) return;
+    let liter = m/price;
 
-    let liters = money / price;
-
-    let last = records.length > 0 ? records[records.length - 1].km : km;
-    let distance = km - last;
-
-    let today = getToday();
+    let last = records.length?records[records.length-1].km:k;
+    let dist = k-last;
 
     records.push({
-        date: today,
-        km: km,
-        distance: distance,
-        value: liters
+        date:getToday(),
+        km:k,
+        distance:dist,
+        value:liter
     });
 
-    localStorage.setItem("fuelRecords", JSON.stringify(records));
+    localStorage.setItem("fuelRecords",JSON.stringify(records));
 
     update();
 }
 
+// 👉 更新畫面
 let chart;
 
-function update() {
+function update(){
 
-    // 即時數據
-    if (records.length > 0) {
-        let last = records[records.length - 1];
-        document.getElementById("distance").innerText = Math.round(last.distance) + " km";
-
-        let cons = last.distance / last.value;
-        document.getElementById("consumption").innerText = cons.toFixed(2) + " km/L";
+    if(records.length){
+        let last=records[records.length-1];
+        distance.innerText=Math.round(last.distance);
+        consumption.innerText=(last.distance/last.value).toFixed(2);
     }
 
-    let week = getWeekDays();
+    let week=getWeek();
 
-    let labels = week.map(d => {
-        let date = new Date(d.date);
-        let day = ["日","一","二","三","四","五","六"][date.getDay()];
-        let label = day + "（" + (date.getMonth()+1) + "/" + date.getDate() + "）";
-        return d.date === getToday() ? "👉 " + label : label;
+    let labels=week.map(d=>{
+        let dt=new Date(d.date);
+        let w=["日","一","二","三","四","五","六"][dt.getDay()];
+        return d.date===getToday()
+            ? "👉 "+w
+            : w;
     });
 
-    let data = week.map(d => d.value);
+    let data=week.map(d=>d.value);
 
-    // 👉 本週平均
-    let valid = data.filter(v => v);
-    let avg = valid.length ? (valid.reduce((a,b)=>a+b,0)/valid.length).toFixed(2) : "-";
-    document.getElementById("weekAvg").innerText = avg + " km/L";
+    // 平均
+    let valid=data.filter(v=>v);
+    let avg=valid.length?(valid.reduce((a,b)=>a+b,0)/valid.length).toFixed(2):"-";
+    weekAvg.innerText=avg+" km/L";
 
-    renderChart(labels, data);
+    render(labels,data);
 }
 
-function renderChart(labels, data) {
-    if (chart) chart.destroy();
+// 👉 畫圖
+function render(labels,data){
+    if(chart)chart.destroy();
 
-    chart = new Chart(document.getElementById("chart"), {
-        type: "bar",
-        data: {
-            labels: labels,
-            datasets: [{
-                label: "km/L",
-                data: data,
-                borderRadius: 8,
-                backgroundColor: "#4da3ff"
+    chart=new Chart(chartEl,{
+        type:"bar",
+        data:{
+            labels:labels,
+            datasets:[{
+                data:data,
+                backgroundColor:"#4da3ff",
+                borderRadius:6
             }]
         },
-        options: {
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: "#aaa" }
-                },
-                x: {
-                    ticks: { color: "#aaa" }
-                }
+        options:{
+            plugins:{legend:{display:false}},
+            scales:{
+                y:{beginAtZero:true}
             }
         }
     });
 }
 
+const chartEl=document.getElementById("chart");
+
 update();
+updatePrice();
 </script>
 
 </body>
