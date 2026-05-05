@@ -1,178 +1,216 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>油耗管理</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0b0b0b;
+    color: #fff;
     margin: 0;
-    font-family: sans-serif;
-    background: #111;
-    color: white;
+    padding: 20px;
 }
+
+h1 {
+    font-size: 24px;
+}
+
 .card {
-    background: #222;
-    margin: 10px;
-    padding: 15px;
-    border-radius: 12px;
+    background: #1c1c1e;
+    padding: 18px;
+    border-radius: 16px;
+    margin-top: 16px;
 }
+
 input {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    background: #333;
-    color: white;
-}
-button {
     width: 100%;
     padding: 14px;
     margin-top: 10px;
-    border: none;
     border-radius: 12px;
-    background: #007aff;
+    border: none;
+    background: #2c2c2e;
     color: white;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+button {
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    background: linear-gradient(90deg,#00c6ff,#0072ff);
+    color: white;
+}
+
+.big {
+    font-size: 34px;
+    font-weight: bold;
 }
 </style>
 </head>
 
 <body>
 
+<h1>⛽ 加油紀錄</h1>
+
 <div class="card">
-    <h2>⛽ 加油紀錄</h2>
-    <input id="amount" placeholder="金額" inputmode="decimal">
-    <input id="mileage" placeholder="里程" inputmode="numeric">
-    <button onclick="saveData()">儲存</button>
+    <div>油價：31.2 元/L</div>
+    <input id="money" type="number" inputmode="decimal" placeholder="輸入金額">
+    <input id="km" type="number" inputmode="decimal" placeholder="輸入里程">
+    <button onclick="save()">儲存</button>
 </div>
 
 <div class="card">
-    <div id="distance">距離：0 km</div>
-    <div id="efficiency">油耗：- km/L</div>
+    <div>距離</div>
+    <div class="big" id="distance">0 km</div>
+    <div>油耗</div>
+    <div class="big" id="consumption">- km/L</div>
 </div>
 
-<canvas id="chart"></canvas>
+<div class="card">
+    <canvas id="chart"></canvas>
+</div>
 
 <script>
-console.log("JS 有執行"); // ⭐ debug用
-
 const price = 31.2;
+let records = JSON.parse(localStorage.getItem("fuelRecords") || "[]");
 
-let lastMileage = Number(localStorage.getItem("lastMileage") || 0);
-
-// ⭐ 安全資料
-let records = [];
-
-try {
-    let raw = JSON.parse(localStorage.getItem("records") || "[]");
-
-    if (Array.isArray(raw)) {
-        records = raw.filter(r => r && r.date && r.value);
-    }
-} catch (e) {
-    records = [];
-}
-
+// 👉 今天
 function getToday() {
     return new Date().toISOString().split("T")[0];
 }
 
+// 👉 星期 label
 function getWeekLabel(dateStr) {
-    const d = new Date(dateStr);
     const days = ["日","一","二","三","四","五","六"];
+    const d = new Date(dateStr);
     return days[d.getDay()] + "（" + (d.getMonth()+1) + "/" + d.getDate() + "）";
 }
 
-function getLast7Days() {
-    let arr = [];
+// 👉 本週（週一開始）
+function getWeekDays() {
+    let today = new Date();
+    let day = today.getDay();
 
-    for (let i = 6; i >= 0; i--) {
-        let d = new Date();
-        d.setDate(d.getDate() - i);
+    let monday = new Date(today);
+    let diff = day === 0 ? -6 : 1 - day;
+    monday.setDate(today.getDate() + diff);
 
-        let str = d.toISOString().split("T")[0];
+    let result = [];
 
-        let found = records.find(r => r.date === str);
+    for (let i = 0; i < 7; i++) {
+        let d = new Date(monday);
+        d.setDate(monday.getDate() + i);
 
-        arr.push({
-            date: str,
-            value: found ? Number(found.value) : null
+        let dateStr = d.toISOString().split("T")[0];
+
+        // 👉 同一天累計
+        let sameDay = records.filter(r => r.date === dateStr);
+
+        let totalValue = 0;
+        let totalDist = 0;
+
+        sameDay.forEach(r => {
+            totalValue += Number(r.value);
+            totalDist += Number(r.distance);
+        });
+
+        let avg = totalValue > 0 ? (totalDist / totalValue) : null;
+
+        result.push({
+            date: dateStr,
+            value: avg
         });
     }
 
-    return arr;
+    return result;
 }
 
-// ⭐ 建圖（防炸）
-let chart;
+// 👉 儲存
+function save() {
+    let money = parseFloat(document.getElementById("money").value);
+    let km = parseFloat(document.getElementById("km").value);
 
-try {
-    const ctx = document.getElementById('chart').getContext('2d');
+    if (!money || !km) return;
 
-    chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'km/L',
-                data: []
-            }]
-        }
+    let liters = money / price;
+
+    let last = records.length > 0 ? records[records.length - 1].km : km;
+    let distance = km - last;
+
+    let consumption = distance > 0 ? distance / liters : 0;
+
+    let today = getToday();
+
+    records.push({
+        date: today,
+        km: km,
+        distance: distance,
+        value: liters
     });
 
-} catch (e) {
-    console.error("Chart錯誤", e);
+    localStorage.setItem("fuelRecords", JSON.stringify(records));
+
+    update();
 }
 
-// ⭐ 更新圖
-function updateChart() {
-    if (!chart) return;
+// 👉 更新畫面
+function update() {
 
-    let week = getLast7Days();
+    if (records.length > 0) {
+        let last = records[records.length - 1];
+        document.getElementById("distance").innerText = Math.round(last.distance) + " km";
 
-    chart.data.labels = week.map(d => getWeekLabel(d.date));
-    chart.data.datasets[0].data = week.map(d => d.value);
-
-    chart.update();
-}
-
-// ⭐ 儲存
-function saveData() {
-    let amount = Number(document.getElementById("amount").value);
-    let mileage = Number(document.getElementById("mileage").value);
-
-    if (!amount || !mileage) return;
-
-    if (lastMileage > 0) {
-        let distance = mileage - lastMileage;
-        let fuel = amount / price;
-        let eff = distance / fuel;
-
-        document.getElementById("distance").innerText = "距離：" + distance + " km";
-        document.getElementById("efficiency").innerText = "油耗：" + eff.toFixed(2) + " km/L";
-
-        let today = getToday();
-
-        records.push({
-            date: today,
-            value: eff
-        });
-
-        localStorage.setItem("records", JSON.stringify(records));
+        let cons = last.distance / last.value;
+        document.getElementById("consumption").innerText = cons.toFixed(2) + " km/L";
     }
 
-    localStorage.setItem("lastMileage", mileage);
-    lastMileage = mileage;
+    let week = getWeekDays();
 
-    updateChart();
+    let labels = week.map(d => {
+        let label = getWeekLabel(d.date);
+        if (d.date === getToday()) return "👉 " + label;
+        return label;
+    });
+
+    let data = week.map(d => d.value);
+
+    renderChart(labels, data);
 }
 
-// ⭐ 初始化
-updateChart();
+// 👉 畫圖
+let chart;
+
+function renderChart(labels, data) {
+    if (chart) chart.destroy();
+
+    chart = new Chart(document.getElementById("chart"), {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "km/L",
+                data: data,
+                backgroundColor: "#4da3ff"
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+update();
 </script>
 
 </body>
