@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{background:#000;color:#fff;font-family:sans-serif;margin:0;padding:20px}
+body{background:#000;color:#fff;font-family:sans-serif;padding:20px}
 .card{background:#1c1c1e;padding:16px;border-radius:16px;margin-bottom:20px}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
-input,select{padding:12px;border:none;border-radius:10px;background:#2c2c2e;color:#fff}
+.label{font-size:12px;color:#aaa;margin-bottom:4px}
+input,select{padding:12px;border:none;border-radius:10px;background:#2c2c2e;color:#fff;width:100%}
 button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe;color:#fff;margin-top:10px}
 .hidden{display:none}
 </style>
@@ -19,29 +20,43 @@ button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe
 
 <h2>⛽ 加油紀錄</h2>
 
-<div>
-<button onclick="showRecord()">紀錄</button>
-<button onclick="showHistory()">歷史</button>
-</div>
-
-<div id="recordPage">
-
 <div class="card">
 
 <div class="row">
+<div>
+<div class="label">油品來源</div>
+<select id="source">
+<option>中油</option>
+<option>台塑</option>
+</select>
+</div>
+
+<div>
+<div class="label">油種</div>
 <select id="type">
 <option>92</option>
 <option selected>95</option>
 <option>98</option>
 <option>柴油</option>
 </select>
-
-<input id="price" placeholder="油價">
 </div>
 
-<div class="row">
-<input id="amount" placeholder="金額">
-<input id="km" placeholder="里程">
+<div>
+<div class="label">油價</div>
+<input id="price">
+</div>
+</div>
+
+<div class="row" style="margin-top:10px">
+<div>
+<div class="label">金額</div>
+<input id="amount">
+</div>
+
+<div>
+<div class="label">總里程</div>
+<input id="km">
+</div>
 </div>
 
 <button onclick="save()">儲存</button>
@@ -54,30 +69,23 @@ button{width:100%;padding:14px;border:none;border-radius:12px;background:#4facfe
 <canvas id="chart"></canvas>
 </div>
 
-</div>
-
-<div id="historyPage" class="hidden">
-<div class="card" id="history"></div>
-</div>
-
 <script>
 
 let data = JSON.parse(localStorage.getItem("fuel")||"[]")
 
-function autoPrice(){
-  const map={92:30,95:31.2,98:33,柴油:28}
-  price.value=map[type.value]
-}
-type.onchange=autoPrice
-autoPrice()
+/* ===== 自動油價 ===== */
+const priceMap={92:30,95:31.2,98:33,柴油:28}
+type.onchange=()=>price.value=priceMap[type.value]
+price.value=priceMap[type.value]
 
+/* ===== 儲存 ===== */
 function save(){
 
-  const amount=parseFloat(amount.value)
+  const amountVal=parseFloat(amount.value)
   const kmVal=parseFloat(km.value)
   const priceVal=parseFloat(price.value)
 
-  if(!amount||!kmVal||!priceVal)return alert("輸入完整")
+  if(!amountVal||!kmVal||!priceVal)return alert("輸入完整")
 
   const last=data[data.length-1]
 
@@ -87,14 +95,13 @@ function save(){
     if(distance<0)return alert("里程錯誤")
   }
 
-  const liter=amount/priceVal
+  const liter=amountVal/priceVal
   const avg=distance>0?distance/liter:0
 
   const item={
     date:new Date().toISOString().slice(0,10),
     km:kmVal,
-    avg:isFinite(avg)?avg:0,
-    distance:isFinite(distance)?distance:0
+    avg
   }
 
   data.push(item)
@@ -103,6 +110,7 @@ function save(){
   update()
 }
 
+/* ===== 更新 ===== */
 function update(){
 
   const last=data[data.length-1]
@@ -112,25 +120,12 @@ function update(){
     return
   }
 
-  result.innerHTML=`距離:${last.distance}km<br>油耗:${last.avg.toFixed(2)}`
+  result.innerHTML=`距離:${last.km}km<br>油耗:${last.avg.toFixed(2)}`
 
-  renderHistory()
   drawChart()
 }
 
-function renderHistory(){
-  history.innerHTML=""
-
-  if(!data.length){
-    history.innerHTML="沒有資料"
-    return
-  }
-
-  data.slice().reverse().forEach(i=>{
-    history.innerHTML+=`${i.date} | ${i.km}km<hr>`
-  })
-}
-
+/* ===== 圖表（同天堆疊）===== */
 let chart
 
 function drawChart(){
@@ -139,28 +134,28 @@ function drawChart(){
 
   if(!data.length)return
 
-  const map={}
+  const grouped={}
 
   data.forEach(i=>{
-    if(!map[i.date])map[i.date]=[]
-    map[i.date].push(i.avg)
+    if(!grouped[i.date])grouped[i.date]=[]
+    grouped[i.date].push(i.avg)
   })
 
-  const labels=Object.keys(map)
+  const labels=Object.keys(grouped)
 
-  const max=Math.max(...Object.values(map).map(a=>a.length))
+  const max=Math.max(...Object.values(grouped).map(a=>a.length))
 
   const datasets=[]
 
   for(let i=0;i<max;i++){
     datasets.push({
-      data:labels.map(d=>map[d][i]||0),
+      data:labels.map(d=>grouped[d][i]||0),
       backgroundColor:`hsl(${i*60},70%,60%)`,
       stack:"a"
     })
   }
 
-  chart=new Chart(chartEl,{
+  chart=new Chart(chart,{
     type:"bar",
     data:{labels,datasets},
     options:{
@@ -168,16 +163,6 @@ function drawChart(){
       scales:{x:{stacked:true},y:{stacked:true}}
     }
   })
-}
-
-function showRecord(){
-  recordPage.classList.remove("hidden")
-  historyPage.classList.add("hidden")
-}
-
-function showHistory(){
-  recordPage.classList.add("hidden")
-  historyPage.classList.remove("hidden")
 }
 
 update()
