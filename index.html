@@ -6,15 +6,13 @@
 
 <title>油耗管理</title>
 
-<!-- PWA -->
 <link rel="apple-touch-icon" href="/icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
+body{
   margin:0;
   background:#000;
   color:#fff;
@@ -27,10 +25,7 @@ body {
   padding:20px;
 }
 
-h1{
-  font-size:22px;
-  margin-bottom:15px;
-}
+h1{font-size:22px;}
 
 .card{
   background:#1c1c1e;
@@ -44,11 +39,11 @@ h1{
   gap:10px;
 }
 
-input, select{
+input,select{
   width:100%;
   padding:12px;
-  border-radius:10px;
   border:none;
+  border-radius:10px;
   background:#2c2c2e;
   color:#fff;
   font-size:16px;
@@ -64,20 +59,16 @@ button{
   font-size:16px;
 }
 
-.stat{
-  font-size:28px;
-  font-weight:bold;
+.stat{font-size:28px;font-weight:bold;}
+.small{color:#aaa;font-size:14px;}
+
+.chart-box{
+  height:260px;
 }
 
-.small{
-  color:#aaa;
-  font-size:14px;
-}
-
-.pull{
-  text-align:center;
-  font-size:12px;
-  color:#aaa;
+canvas{
+  width:100% !important;
+  height:100% !important;
 }
 </style>
 </head>
@@ -85,8 +76,6 @@ button{
 <body>
 
 <div class="container">
-
-<div class="pull">⬇ 下拉重新整理</div>
 
 <h1>⛽ 加油紀錄</h1>
 
@@ -105,14 +94,14 @@ button{
 <option value="diesel">柴油</option>
 </select>
 
-<input id="price" type="number" value="31.2">
+<input id="price" type="tel" inputmode="decimal" value="31.2">
 </div>
 
 <br>
 
 <div class="row">
-<input id="amount" type="number" placeholder="輸入金額">
-<input id="km" type="number" placeholder="輸入里程">
+<input id="amount" type="tel" inputmode="numeric" placeholder="輸入金額">
+<input id="km" type="tel" inputmode="numeric" placeholder="輸入里程">
 </div>
 
 <br>
@@ -129,7 +118,7 @@ button{
 <div class="stat" id="avg">- km/L</div>
 </div>
 
-<div class="card">
+<div class="card chart-box">
 <canvas id="chart"></canvas>
 </div>
 
@@ -138,9 +127,12 @@ button{
 <script>
 
 let records = JSON.parse(localStorage.getItem("fuel")||"[]")
-
 let lastKm = localStorage.getItem("lastKm")||""
 document.getElementById("km").value = lastKm
+
+const amountEl = document.getElementById("amount")
+const kmEl = document.getElementById("km")
+const priceEl = document.getElementById("price")
 
 function save(){
 
@@ -150,20 +142,24 @@ let price = Number(priceEl.value)
 
 if(!amount || !km) return
 
-let last = records.length ? records[records.length-1].km : km
-let dist = km - last
+let last = records.length ? records[records.length-1].km : null
+
+let dist = last ? (km - last) : 0
 let liter = amount / price
-let kmpl = dist / liter
+let kmpl = (dist>0 && liter>0)? dist/liter : 0
 
 let today = new Date().toISOString().slice(0,10)
 
-records.push({
-date:today,
-km,
-amount,
-price,
-kmpl
-})
+// ⭐ 同一天累計
+let existing = records.find(r=>r.date===today)
+
+if(existing){
+existing.amount += amount
+existing.km = km
+existing.kmpl = kmpl
+}else{
+records.push({date:today,km,amount,price,kmpl})
+}
 
 localStorage.setItem("fuel",JSON.stringify(records))
 localStorage.setItem("lastKm",km)
@@ -171,26 +167,21 @@ localStorage.setItem("lastKm",km)
 render()
 }
 
-const amountEl = document.getElementById("amount")
-const kmEl = document.getElementById("km")
-const priceEl = document.getElementById("price")
-
 function getWeek(){
 
-let days = []
-let now = new Date()
-
-let start = new Date(now)
+let days=[]
+let now=new Date()
+let start=new Date(now)
 start.setDate(now.getDate()-now.getDay())
 
 for(let i=0;i<7;i++){
-let d = new Date(start)
+let d=new Date(start)
 d.setDate(start.getDate()+i)
 
-let label = "日一二三四五六"[d.getDay()]
+let label="日一二三四五六"[d.getDay()]
 +" ("+(d.getMonth()+1)+"/"+d.getDate()+")"
 
-let key = d.toISOString().slice(0,10)
+let key=d.toISOString().slice(0,10)
 
 days.push({label,key})
 }
@@ -198,88 +189,11 @@ days.push({label,key})
 return days
 }
 
+let chart
+
 function render(){
 
-if(!records.length) return
+if(chart) chart.destroy()
 
-let last = records[records.length-1]
-
-document.getElementById("distance").innerText =
-(records.length>1 ? last.km-records[records.length-2].km : 0)+" km"
-
-document.getElementById("avg").innerText =
-last.kmpl.toFixed(2)+" km/L"
-
-let week = getWeek()
-
-let map = {}
-
-records.forEach(r=>{
-if(!map[r.date]) map[r.date]={dist:0,liter:0}
-map[r.date].dist += r.km
-map[r.date].liter += r.amount/r.price
-})
-
-let labels = []
-let data = []
-
-week.forEach(d=>{
-labels.push(d.label)
-
-if(map[d.key]){
-data.push(map[d.key].dist/map[d.key].liter)
-}else{
-data.push(0)
-}
-})
-
-let avg = data.filter(x=>x).reduce((a,b)=>a+b,0)/data.filter(x=>x).length||0
-
-new Chart(document.getElementById("chart"),{
-type:"bar",
-data:{
-labels,
-datasets:[{
-label:"km/L",
-data,
-backgroundColor:"#3b82f6"
-}]
-},
-options:{
-plugins:{
-legend:{display:false},
-title:{
-display:true,
-text:"平均油耗 "+avg.toFixed(2)+" km/L",
-align:"end",
-color:"#fff"
-}
-},
-scales:{
-x:{ticks:{color:"#aaa"}},
-y:{ticks:{color:"#aaa"}}
-}
-}
-})
-
-}
-
-render()
-
-// 下拉重整
-let startY=0
-window.addEventListener("touchstart",e=>{
-startY = e.touches[0].clientY
-})
-
-window.addEventListener("touchend",e=>{
-let endY = e.changedTouches[0].clientY
-if(endY-startY>120){
-location.reload()
-}
-})
-
-</script>
-
-</body>
-</html>
+let week=getWeek()
+let
