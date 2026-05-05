@@ -45,6 +45,7 @@ input {
     background: #2c2c2e;
     color: white;
     font-size: 16px;
+    box-sizing: border-box; /* ⭐ 修正爆版 */
 }
 
 /* 按鈕 */
@@ -66,14 +67,14 @@ button {
 }
 
 .big-number {
-    font-size: 32px;
+    font-size: 34px;
     font-weight: bold;
-    margin-top: 8px;
+    margin-top: 6px;
 }
 
 .label {
     color: #aaa;
-    margin-top: 6px;
+    margin-top: 10px;
 }
 
 /* 區塊標題 */
@@ -92,8 +93,8 @@ button {
 <div class="card">
     <div class="price">油價（中油95）：31.2 元/L</div>
 
-    <input id="amount" placeholder="輸入金額">
-    <input id="mileage" placeholder="輸入里程">
+    <input id="amount" placeholder="輸入金額" inputmode="numeric">
+    <input id="mileage" placeholder="輸入里程" inputmode="numeric">
 
     <button onclick="saveData()">儲存</button>
 </div>
@@ -109,8 +110,21 @@ button {
 <div class="section-title">📊 本週油耗</div>
 
 <script>
-let lastMileage = null;
 const price = 31.2;
+
+// ⭐ 讀取上次里程
+let lastMileage = localStorage.getItem("lastMileage");
+if (lastMileage !== null) {
+    lastMileage = parseFloat(lastMileage);
+}
+
+// ⭐ 自動帶入
+if (lastMileage !== null) {
+    document.getElementById("mileage").value = lastMileage;
+}
+
+// ⭐ 游標自動在金額
+document.getElementById("amount").focus();
 
 function saveData() {
     const amount = parseFloat(document.getElementById("amount").value);
@@ -127,7 +141,13 @@ function saveData() {
         document.getElementById("efficiency").innerText = efficiency.toFixed(2) + " km/L";
     }
 
+    // ⭐ 存起來（關鍵）
+    localStorage.setItem("lastMileage", mileage);
+
     lastMileage = mileage;
+
+    // ⭐ 清空金額（讓下一次更快輸入）
+    document.getElementById("amount").value = "";
 }
 </script>
 
