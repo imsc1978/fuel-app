@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>油耗管理</title>
+<title>加油紀錄</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-*{box-sizing:border-box;}
-
 body{
   margin:0;
   background:#000;
@@ -18,52 +16,34 @@ body{
 }
 
 .container{
-  max-width:420px;
-  margin:auto;
   padding:16px;
 }
 
-.title{
-  font-size:22px;
-  margin-bottom:12px;
+h1{
+  font-size:28px;
 }
 
-/* Tabs */
-.tabs{display:flex;margin-bottom:12px;}
-.tab{
-  flex:1;
-  padding:10px;
-  text-align:center;
-  background:#1c1c1e;
-  border-radius:10px;
-  margin-right:6px;
-}
-.tab.active{background:#2f6bff;}
-
-/* Card */
 .card{
   background:#1c1c1e;
-  border-radius:18px;
+  border-radius:16px;
   padding:16px;
-  margin-bottom:16px;
+  margin-top:16px;
 }
 
-/* Grid */
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
-
-.group{display:flex;flex-direction:column;gap:4px;}
-label{font-size:13px;color:#aaa;}
+.row{
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+}
 
 input,select{
-  width:100%;
-  min-width:0;
-  padding:12px;
-  border-radius:10px;
+  flex:1;
+  padding:14px;
   border:none;
+  border-radius:10px;
   background:#2c2c2e;
   color:#fff;
-  font-size:16px; /* 防縮放 */
+  font-size:16px;
 }
 
 button{
@@ -71,24 +51,35 @@ button{
   padding:14px;
   border:none;
   border-radius:12px;
-  background:linear-gradient(90deg,#1ea9ff,#2f6bff);
+  background:linear-gradient(90deg,#2aa7ff,#3b6cff);
   color:#fff;
+  font-size:18px;
+}
+
+.label{
+  font-size:14px;
+  color:#aaa;
+  margin-bottom:4px;
+}
+
+.tab{
+  display:flex;
+  gap:10px;
   margin-top:10px;
 }
 
-.sub-btn{background:#3a3a3c;}
-
-.result{line-height:1.6;}
-
-.item{
-  padding:12px;
-  border-bottom:1px solid #333;
+.tab button{
+  flex:1;
+  background:#2c2c2e;
 }
 
-.chart-wrap{height:220px;}
-canvas{width:100%!important;height:100%!important;}
+.tab .active{
+  background:#3b6cff;
+}
 
-.hidden{display:none;}
+.hidden{
+  display:none;
+}
 </style>
 </head>
 
@@ -96,47 +87,57 @@ canvas{width:100%!important;height:100%!important;}
 
 <div class="container">
 
-<div class="title">⛽ 加油紀錄</div>
+<h1>⛽ 加油紀錄</h1>
 
-<div class="tabs">
-  <div class="tab active" id="tabMain">紀錄</div>
-  <div class="tab" id="tabHistory">📋 歷史</div>
+<div class="tab">
+  <button id="tabRecord" class="active">紀錄</button>
+  <button id="tabHistory">歷史</button>
 </div>
 
-<!-- 主頁 -->
-<div id="mainPage">
+<!-- 紀錄 -->
+<div id="recordPage">
 
 <div class="card">
 
-  <div class="grid3">
-    <select id="source"></select>
-    <select id="type"></select>
-    <input id="price">
+<div class="row">
+  <select id="source">
+    <option>中油</option>
+    <option>台塑</option>
+  </select>
+
+  <select id="fuel">
+    <option value="92">92</option>
+    <option value="95" selected>95</option>
+    <option value="98">98</option>
+    <option value="diesel">柴油</option>
+  </select>
+
+  <input id="price" type="number">
+</div>
+
+<div class="row">
+  <div style="flex:1">
+    <div class="label">金額</div>
+    <input id="amount" type="number" inputmode="decimal">
   </div>
 
-  <div class="grid2">
-    <div class="group">
-      <label>金額</label>
-      <input id="amount" inputmode="decimal">
-    </div>
-    <div class="group">
-      <label>總里程</label>
-      <input id="km" inputmode="numeric">
-    </div>
+  <div style="flex:1">
+    <div class="label">總里程</div>
+    <input id="km" type="number" inputmode="numeric">
   </div>
+</div>
 
-  <button id="saveBtn">儲存</button>
-  <button class="sub-btn" id="deleteBtn">刪除最後一筆</button>
+<button onclick="save()">儲存</button>
 
 </div>
 
-<div class="card result">
-  距離：<span id="distance">-</span> km<br>
-  油耗：<span id="kmpl">-</span> km/L
+<div class="card">
+距離：<span id="distance">-</span> km<br>
+油耗：<span id="kmpl">-</span> km/L
 </div>
 
-<div class="card chart-wrap">
-  <canvas id="chart"></canvas>
+<div class="card">
+<canvas id="chart"></canvas>
 </div>
 
 </div>
@@ -149,153 +150,156 @@ canvas{width:100%!important;height:100%!important;}
 </div>
 
 <script>
+let records = JSON.parse(localStorage.getItem("fuelRecords")||"[]")
+let chart
 
-/* ====== DOM ====== */
-const mainPage = document.getElementById("mainPage")
-const historyPage = document.getElementById("historyPage")
-
-const tabMain = document.getElementById("tabMain")
-const tabHistory = document.getElementById("tabHistory")
-
-const sourceEl = document.getElementById("source")
-const typeEl = document.getElementById("type")
-const priceEl = document.getElementById("price")
-
-const amountEl = document.getElementById("amount")
-const kmEl = document.getElementById("km")
-
-const saveBtn = document.getElementById("saveBtn")
-const deleteBtn = document.getElementById("deleteBtn")
-
-const distanceEl = document.getElementById("distance")
-const kmplEl = document.getElementById("kmpl")
-
-/* ====== 資料 ====== */
-let records = JSON.parse(localStorage.getItem("fuel") || "[]")
-let chart = null
-
-const priceMap = {
-  "中油": {"92":30.2,"95":31.2,"98":33.2,"柴油":28},
-  "台塑": {"92":30,"95":31,"98":33,"柴油":27.8}
+// 🔥 油價表
+const priceMap={
+  "92":29.2,
+  "95":31.2,
+  "98":33.2,
+  "diesel":27.5
 }
 
-/* ====== 初始化選單 ====== */
-sourceEl.innerHTML = `<option>中油</option><option>台塑</option>`
-typeEl.innerHTML = `<option>92</option><option selected>95</option><option>98</option><option>柴油</option>`
-
-function updatePrice(){
-  priceEl.value = priceMap[sourceEl.value][typeEl.value]
+// 自動油價
+document.getElementById("fuel").onchange=e=>{
+  document.getElementById("price").value=priceMap[e.target.value]
 }
 
-sourceEl.onchange = updatePrice
-typeEl.onchange = updatePrice
-updatePrice()
+// 初始化
+document.getElementById("price").value=31.2
 
-/* ====== Tab ====== */
-tabMain.onclick = () => {
-  mainPage.classList.remove("hidden")
-  historyPage.classList.add("hidden")
-  tabMain.classList.add("active")
-  tabHistory.classList.remove("active")
-}
+function save(){
 
-tabHistory.onclick = () => {
-  historyPage.classList.remove("hidden")
-  mainPage.classList.add("hidden")
-  tabHistory.classList.add("active")
-  tabMain.classList.remove("active")
-}
+  const price = parseFloat(price.value)
+  const amount = parseFloat(amount.value)
+  const kmVal = parseFloat(km.value)
 
-/* ====== 儲存 ====== */
-saveBtn.onclick = () => {
-
-  const amount = parseFloat(amountEl.value)
-  const km = parseFloat(kmEl.value)
-  const price = parseFloat(priceEl.value)
-
-  if(!amount || !km){
-    alert("請輸入完整資料")
+  if(!price || !amount || !kmVal){
+    alert("請填完整")
     return
   }
 
-  const last = records.at(-1)
-
-  if(last && km <= last.km){
-    alert("里程需大於上一筆")
-    return
+  if(records.length>0){
+    const last = records[records.length-1].km
+    if(kmVal < last){
+      alert("里程不能小於上一筆")
+      return
+    }
   }
 
-  const dist = last ? km - last.km : 0
-  const kmpl = dist ? dist / (amount / price) : 0
+  const liter = amount / price
+
+  let distance = 0
+  let kmpl = 0
+
+  if(records.length>0){
+    const last = records[records.length-1].km
+    distance = kmVal - last
+    kmpl = distance / liter
+  }
 
   records.push({
-    date: new Date().toLocaleDateString(),
-    km,
-    kmpl
+    date: new Date().toISOString().slice(0,10),
+    km: kmVal,
+    kmpl: kmpl
   })
 
-  localStorage.setItem("fuel", JSON.stringify(records))
+  localStorage.setItem("fuelRecords",JSON.stringify(records))
 
-  amountEl.value=""
+  update()
+  drawChart()
+  renderHistory()
 
-  render()
+  amount.value=""
 }
 
-/* ====== 刪除 ====== */
-deleteBtn.onclick = () => {
-  if(!records.length) return
-  records.pop()
-  localStorage.setItem("fuel", JSON.stringify(records))
-  render()
-}
+function update(){
 
-/* ====== 渲染 ====== */
-function render(){
-
-  if(records.length >= 2){
-    const last = records.at(-1)
-    const prev = records.at(-2)
-
-    distanceEl.innerText = last.km - prev.km
-    kmplEl.innerText = last.kmpl.toFixed(2)
+  if(records.length<2){
+    distance.innerText="-"
+    kmpl.innerText="-"
+    return
   }
 
-  renderHistory()
-  drawChart()
+  const last = records[records.length-1]
+  const prev = records[records.length-2]
+
+  const d = last.km - prev.km
+
+  distance.innerText = d
+  kmpl.innerText = last.kmpl.toFixed(2)
 }
 
-/* ====== 歷史 ====== */
-function renderHistory(){
-  historyList.innerHTML = records.map(r=>`
-    <div class="item">
-      ${r.date}｜${r.km} km
-    </div>
-  `).reverse().join("")
-}
-
-/* ====== 圖表 ====== */
+// 🔥 重點：堆疊圖（同一天一柱）
 function drawChart(){
-
-  const labels = records.map(r=>r.date)
-  const data = records.map(r=>r.kmpl)
 
   if(chart) chart.destroy()
 
-  chart = new Chart(document.getElementById("chart"),{
+  if(records.length===0) return
+
+  const grouped={}
+
+  records.forEach(r=>{
+    if(!grouped[r.date]) grouped[r.date]=[]
+    grouped[r.date].push(r)
+  })
+
+  const dates=Object.keys(grouped)
+
+  const maxCount = Math.max(...dates.map(d=>grouped[d].length))
+
+  const datasets=[]
+
+  for(let i=0;i<maxCount;i++){
+    datasets.push({
+      data: dates.map(d=>grouped[d][i]?.kmpl || 0),
+      backgroundColor:`hsl(${i*60},70%,60%)`
+    })
+  }
+
+  chart = new Chart(chartCanvas,{
     type:"bar",
     data:{
-      labels,
-      datasets:[{data}]
+      labels:dates,
+      datasets
     },
     options:{
       plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true}}
+      scales:{
+        x:{stacked:true},
+        y:{stacked:true}
+      }
     }
   })
 }
 
-render()
+// 歷史
+function renderHistory(){
+  historyList.innerHTML = records.map(r=>`
+    <div>${r.date} | ${r.km} km</div>
+  `).join("<hr>")
+}
 
+// 切換頁
+tabRecord.onclick=()=>{
+  recordPage.classList.remove("hidden")
+  historyPage.classList.add("hidden")
+  tabRecord.classList.add("active")
+  tabHistory.classList.remove("active")
+}
+
+tabHistory.onclick=()=>{
+  historyPage.classList.remove("hidden")
+  recordPage.classList.add("hidden")
+  tabHistory.classList.add("active")
+  tabRecord.classList.remove("active")
+}
+
+// init
+update()
+drawChart()
+renderHistory()
 </script>
 
 </body>
