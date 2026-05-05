@@ -8,19 +8,61 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{margin:0;background:#000;color:#fff;font-family:sans-serif;padding:16px;}
-.card{background:#1c1c1e;padding:16px;border-radius:18px;margin-bottom:16px;}
-.row{display:grid;gap:10px;}
-.row-3{grid-template-columns:repeat(3,1fr);}
-.row-2{grid-template-columns:repeat(2,1fr);}
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  background:#000;
+  color:#fff;
+  font-family:-apple-system;
+}
+
+.container{
+  max-width:420px;
+  margin:auto;
+  padding:16px;
+}
+
+.title{
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:12px;
+}
+
+.card{
+  background:#1c1c1e;
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:16px;
+}
+
+/* GRID */
+.grid3{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+}
+
+.grid2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:10px;
+}
+
+/* INPUT */
 input,select{
   width:100%;
+  min-width:0; /* 🔥關鍵 防止爆版 */
   padding:12px;
   border-radius:10px;
   border:none;
   background:#2c2c2e;
   color:#fff;
+  font-size:14px;
 }
+
+/* BUTTON */
 button{
   width:100%;
   padding:14px;
@@ -28,22 +70,42 @@ button{
   border-radius:12px;
   background:linear-gradient(90deg,#1ea9ff,#2f6bff);
   color:#fff;
-  margin-top:8px;
+  margin-top:10px;
+  font-size:16px;
 }
-.small-btn{
-  background:#444;
+
+.sub-btn{
+  background:#3a3a3c;
 }
-canvas{height:220px;}
+
+/* RESULT */
+.result{
+  font-size:16px;
+  line-height:1.6;
+}
+
+/* CHART */
+.chart-wrap{
+  height:220px;
+}
+
+canvas{
+  width:100%!important;
+  height:100%!important;
+}
+
 </style>
 </head>
 
 <body>
 
-<h2>⛽ 加油紀錄</h2>
+<div class="container">
+
+<div class="title">⛽ 加油紀錄</div>
 
 <div class="card">
 
-  <div class="row row-3">
+  <div class="grid3">
     <select id="source">
       <option>中油</option>
       <option>台塑</option>
@@ -59,24 +121,26 @@ canvas{height:220px;}
     <input id="price">
   </div>
 
-  <div class="row row-2" style="margin-top:10px;">
+  <div class="grid2">
     <input id="amount" placeholder="金額" inputmode="decimal">
     <input id="km" placeholder="總里程" inputmode="numeric">
   </div>
 
   <button onclick="save()">儲存</button>
-  <button class="small-btn" onclick="editLast()">✏️ 修改最後一筆</button>
-  <button class="small-btn" onclick="deleteLast()">🗑 刪除最後一筆</button>
+  <button class="sub-btn" onclick="editLast()">✏️ 修改最後一筆</button>
+  <button class="sub-btn" onclick="deleteLast()">🗑 刪除最後一筆</button>
 
 </div>
 
-<div class="card">
+<div class="card result">
   距離：<span id="distance">-</span> km<br>
   油耗：<span id="kmpl">-</span> km/L
 </div>
 
-<div class="card">
+<div class="card chart-wrap">
   <canvas id="chart"></canvas>
+</div>
+
 </div>
 
 <script>
@@ -107,21 +171,14 @@ function today(){
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
 }
 
-function validInput(amount,km){
-  if(amount<=0 || km<=0) return false
-  if(amount>5000) return false
-  if(km>1000000) return false
-  return true
-}
-
 function save(){
 
   let amount=parseFloat(amountEl.value)
   let km=parseFloat(kmEl.value)
   let price=parseFloat(priceEl.value)
 
-  if(!validInput(amount,km)){
-    alert("數值異常")
+  if(!amount || !km){
+    alert("請輸入完整資料")
     return
   }
 
@@ -153,16 +210,15 @@ function editLast(){
 
   let last=records.at(-1)
 
-  amountEl.value=""
   kmEl.value=last.km
 
-  alert("已載入最後一筆，修改後按儲存")
+  alert("修改後按儲存（會新增一筆）")
 }
 
 function deleteLast(){
   if(!records.length) return
 
-  if(confirm("確定刪除最後一筆？")){
+  if(confirm("刪除最後一筆？")){
     records.pop()
     localStorage.setItem("fuel",JSON.stringify(records))
     render()
@@ -201,7 +257,6 @@ function getWeek(){
 function drawChart(){
 
   let week=getWeek()
-
   let map={}
 
   records.forEach(r=>{
@@ -227,10 +282,7 @@ function drawChart(){
 
   chart=new Chart(document.getElementById("chart"),{
     type:"bar",
-    data:{
-      labels,
-      datasets:[{data}]
-    },
+    data:{labels,datasets:[{data}]},
     options:{
       plugins:{legend:{display:false}},
       scales:{y:{beginAtZero:true}}
