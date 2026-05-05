@@ -7,24 +7,28 @@
 
 <style>
 body {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont;
     background: #0b0b0b;
     color: #fff;
     margin: 0;
-    padding: 20px;
+    padding: 16px;
 }
 
 h1 {
-    font-size: 24px;
+    font-size: 22px;
+    margin-bottom: 10px;
 }
 
+/* 卡片 */
 .card {
-    background: #1c1c1e;
-    padding: 18px;
-    border-radius: 16px;
-    margin-top: 16px;
+    background: linear-gradient(180deg,#1c1c1e,#151515);
+    padding: 16px;
+    border-radius: 18px;
+    margin-top: 14px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
 }
 
+/* 輸入 */
 input {
     width: 100%;
     padding: 14px;
@@ -37,20 +41,40 @@ input {
     box-sizing: border-box;
 }
 
+/* 按鈕 */
 button {
     width: 100%;
-    margin-top: 14px;
+    margin-top: 12px;
     padding: 14px;
     border-radius: 12px;
     border: none;
     font-size: 16px;
     background: linear-gradient(90deg,#00c6ff,#0072ff);
     color: white;
+    transition: 0.2s;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+/* 主資訊 */
+.mainStat {
+    text-align: center;
 }
 
 .big {
-    font-size: 34px;
+    font-size: 40px;
     font-weight: bold;
+}
+
+.sub {
+    color: #aaa;
+}
+
+/* 圖表縮小 */
+canvas {
+    height: 200px !important;
 }
 </style>
 </head>
@@ -59,6 +83,13 @@ button {
 
 <h1>⛽ 加油紀錄</h1>
 
+<!-- 主卡 -->
+<div class="card mainStat">
+    <div class="sub">本週平均油耗</div>
+    <div class="big" id="weekAvg">- km/L</div>
+</div>
+
+<!-- 輸入 -->
 <div class="card">
     <div>油價：31.2 元/L</div>
     <input id="money" type="number" inputmode="decimal" placeholder="輸入金額">
@@ -66,13 +97,15 @@ button {
     <button onclick="save()">儲存</button>
 </div>
 
+<!-- 即時 -->
 <div class="card">
     <div>距離</div>
     <div class="big" id="distance">0 km</div>
-    <div>油耗</div>
+    <div class="sub">平均油耗</div>
     <div class="big" id="consumption">- km/L</div>
 </div>
 
+<!-- 圖表 -->
 <div class="card">
     <canvas id="chart"></canvas>
 </div>
@@ -81,19 +114,10 @@ button {
 const price = 31.2;
 let records = JSON.parse(localStorage.getItem("fuelRecords") || "[]");
 
-// 👉 今天
 function getToday() {
     return new Date().toISOString().split("T")[0];
 }
 
-// 👉 星期 label
-function getWeekLabel(dateStr) {
-    const days = ["日","一","二","三","四","五","六"];
-    const d = new Date(dateStr);
-    return days[d.getDay()] + "（" + (d.getMonth()+1) + "/" + d.getDate() + "）";
-}
-
-// 👉 本週（週一開始）
 function getWeekDays() {
     let today = new Date();
     let day = today.getDay();
@@ -110,18 +134,17 @@ function getWeekDays() {
 
         let dateStr = d.toISOString().split("T")[0];
 
-        // 👉 同一天累計
         let sameDay = records.filter(r => r.date === dateStr);
 
         let totalValue = 0;
         let totalDist = 0;
 
         sameDay.forEach(r => {
-            totalValue += Number(r.value);
-            totalDist += Number(r.distance);
+            totalValue += r.value;
+            totalDist += r.distance;
         });
 
-        let avg = totalValue > 0 ? (totalDist / totalValue) : null;
+        let avg = totalValue > 0 ? totalDist / totalValue : null;
 
         result.push({
             date: dateStr,
@@ -132,7 +155,6 @@ function getWeekDays() {
     return result;
 }
 
-// 👉 儲存
 function save() {
     let money = parseFloat(document.getElementById("money").value);
     let km = parseFloat(document.getElementById("km").value);
@@ -143,8 +165,6 @@ function save() {
 
     let last = records.length > 0 ? records[records.length - 1].km : km;
     let distance = km - last;
-
-    let consumption = distance > 0 ? distance / liters : 0;
 
     let today = getToday();
 
@@ -160,9 +180,11 @@ function save() {
     update();
 }
 
-// 👉 更新畫面
+let chart;
+
 function update() {
 
+    // 即時數據
     if (records.length > 0) {
         let last = records[records.length - 1];
         document.getElementById("distance").innerText = Math.round(last.distance) + " km";
@@ -174,18 +196,21 @@ function update() {
     let week = getWeekDays();
 
     let labels = week.map(d => {
-        let label = getWeekLabel(d.date);
-        if (d.date === getToday()) return "👉 " + label;
-        return label;
+        let date = new Date(d.date);
+        let day = ["日","一","二","三","四","五","六"][date.getDay()];
+        let label = day + "（" + (date.getMonth()+1) + "/" + date.getDate() + "）";
+        return d.date === getToday() ? "👉 " + label : label;
     });
 
     let data = week.map(d => d.value);
 
+    // 👉 本週平均
+    let valid = data.filter(v => v);
+    let avg = valid.length ? (valid.reduce((a,b)=>a+b,0)/valid.length).toFixed(2) : "-";
+    document.getElementById("weekAvg").innerText = avg + " km/L";
+
     renderChart(labels, data);
 }
-
-// 👉 畫圖
-let chart;
 
 function renderChart(labels, data) {
     if (chart) chart.destroy();
@@ -197,13 +222,21 @@ function renderChart(labels, data) {
             datasets: [{
                 label: "km/L",
                 data: data,
+                borderRadius: 8,
                 backgroundColor: "#4da3ff"
             }]
         },
         options: {
+            plugins: {
+                legend: { display: false }
+            },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    ticks: { color: "#aaa" }
+                },
+                x: {
+                    ticks: { color: "#aaa" }
                 }
             }
         }
