@@ -1,317 +1,325 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-TW">
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>加油紀錄</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body{
-  background:#000;
-  color:white;
-  font-family:sans-serif;
   margin:0;
-  padding:20px;
+  background:#000;
+  color:#fff;
+  font-family:-apple-system;
 }
 
-h1{
-  margin-bottom:20px;
+.container{
+  padding:16px;
+  max-width:500px;
+  margin:auto;
 }
 
+/* tabs */
 .tabs{
   display:flex;
   gap:10px;
-  margin-bottom:20px;
+  margin-bottom:16px;
 }
 
 .tab{
   flex:1;
   padding:12px;
   border-radius:12px;
-  background:#333;
   text-align:center;
+  background:#333;
 }
 
 .tab.active{
   background:#4da3ff;
 }
 
+/* card */
 .card{
   background:#1c1c1e;
   padding:16px;
   border-radius:16px;
-  margin-bottom:20px;
+  margin-bottom:16px;
 }
 
-.row{
-  display:flex;
+/* form */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
   gap:10px;
-  margin-bottom:10px;
 }
 
-input{
-  flex:1;
+input, select{
+  width:100%;
   padding:12px;
   border-radius:10px;
   border:none;
   background:#2c2c2e;
-  color:white;
+  color:#fff;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 button{
   width:100%;
   padding:14px;
+  margin-top:12px;
   border:none;
   border-radius:12px;
   background:#4da3ff;
-  color:white;
+  color:#fff;
   font-size:16px;
 }
 
+/* history */
+.item{
+  padding:12px 0;
+  border-bottom:1px solid #333;
+}
+
+/* hidden */
 .hidden{
   display:none;
-}
-
-/* ===== 歷史 ===== */
-.history-item{
-  position:relative;
-  overflow:hidden;
-  border-radius:12px;
-  margin:10px 0;
-}
-
-.item-content{
-  background:#1c1c1e;
-  padding:16px;
-  transition:0.25s;
-}
-
-.delete-btn{
-  position:absolute;
-  right:0;
-  top:0;
-  bottom:0;
-  width:80px;
-  background:#ff3b30;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.history-item.show .item-content{
-  transform:translateX(-80px);
-}
-
-/* ===== ActionSheet ===== */
-.action-sheet{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  background:rgba(0,0,0,0.4);
-  display:flex;
-  align-items:flex-end;
-}
-
-.sheet{
-  width:100%;
-  background:#111;
-  border-radius:16px 16px 0 0;
-  padding:12px;
-}
-
-.sheet button{
-  background:#222;
-  margin:6px 0;
 }
 </style>
 </head>
 
 <body>
 
-<h1>⛽ 加油紀錄</h1>
+<div class="container">
 
+<h2>⛽ 加油紀錄</h2>
+
+<!-- tabs -->
 <div class="tabs">
   <div id="tabRecord" class="tab active">紀錄</div>
   <div id="tabHistory" class="tab">歷史</div>
 </div>
 
-<!-- ===== 紀錄頁 ===== -->
-<div id="recordPage" class="card">
+<!-- =========================
+📥 RECORD PAGE
+========================= -->
+<div id="recordPage">
 
-  <div class="row">
-    <input id="amount" type="number" placeholder="金額">
-    <input id="km" type="number" placeholder="總里程">
-  </div>
+<div class="card">
 
-  <button onclick="saveRecord()">儲存</button>
+<div class="grid">
+  <input id="amount" type="number" inputmode="decimal" placeholder="金額">
+  <input id="mileage" type="number" inputmode="numeric" placeholder="總里程">
+</div>
+
+<button id="saveBtn">儲存</button>
 
 </div>
 
-<!-- ===== 歷史頁 ===== -->
-<div id="historyPage" class="card hidden">
-  <div id="historyList"></div>
+<div class="card">
+  距離：<span id="distance">--</span> km<br>
+  油耗：<span id="efficiency">--</span> km/L
+</div>
+
+<div class="card">
+  <canvas id="chart"></canvas>
+</div>
+
+</div>
+
+<!-- =========================
+📜 HISTORY PAGE
+========================= -->
+<div id="historyPage" class="hidden">
+  <div id="historyList" class="card"></div>
+</div>
+
 </div>
 
 <script>
-const KEY="fuel"
 
-// ===== TAB =====
-const tabRecord=document.getElementById("tabRecord")
-const tabHistory=document.getElementById("tabHistory")
-const recordPage=document.getElementById("recordPage")
-const historyPage=document.getElementById("historyPage")
+/* =========================
+⚙️ CONFIG
+========================= */
+const KEY = "fuel";
+
+/* =========================
+💾 DATA
+========================= */
+function getData(){
+  return JSON.parse(localStorage.getItem(KEY)||"[]");
+}
+
+function saveData(data){
+  localStorage.setItem(KEY, JSON.stringify(data));
+}
+
+/* =========================
+🧮 CALC
+========================= */
+function calc(last, now){
+  if(!last) return {distance:0, eff:0};
+
+  const distance = now.mileage - last.mileage;
+
+  if(distance<=0 || !now.amount){
+    return {distance:0, eff:0};
+  }
+
+  const liter = now.amount / now.price;
+  if(liter===0) return {distance:0, eff:0};
+
+  return {
+    distance,
+    eff: distance / liter
+  };
+}
+
+/* =========================
+🎨 UI
+========================= */
+function updateUI(d, e){
+  document.getElementById("distance").innerText =
+    d ? d.toFixed(0) : "--";
+
+  document.getElementById("efficiency").innerText =
+    e ? e.toFixed(2) : "--";
+}
+
+/* =========================
+📊 CHART
+========================= */
+let chart;
+
+function drawChart(){
+  const data = getData();
+
+  const labels = data.map(d=>d.date);
+  const values = data.map(d=>d.eff||0);
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"),{
+    type:"bar",
+    data:{
+      labels,
+      datasets:[{
+        data:values
+      }]
+    }
+  });
+}
+
+/* =========================
+📜 HISTORY
+========================= */
+function renderHistory(){
+  const list = document.getElementById("historyList");
+  list.innerHTML="";
+
+  const data = getData().slice().reverse();
+
+  data.forEach((d,i)=>{
+    const div = document.createElement("div");
+    div.className="item";
+    div.innerText = `${d.date} | ${d.mileage} km`;
+
+    div.onclick = ()=>{
+      if(!confirm("刪除這筆？")) return;
+
+      const origin = getData();
+      origin.splice(origin.length-1-i,1);
+      saveData(origin);
+      renderHistory();
+      drawChart();
+    };
+
+    list.appendChild(div);
+  });
+}
+
+/* =========================
+🖱️ EVENT
+========================= */
+
+document.getElementById("saveBtn").onclick = ()=>{
+
+  const amount = parseFloat(amountEl.value);
+  const mileage = parseFloat(mileageEl.value);
+
+  if(!amount || !mileage){
+    alert("請輸入完整");
+    return;
+  }
+
+  const data = getData();
+  const last = data[data.length-1];
+
+  const record = {
+    date:new Date().toISOString().slice(0,10),
+    amount,
+    mileage,
+    price:30
+  };
+
+  const result = calc(last, record);
+
+  record.distance = result.distance;
+  record.eff = result.eff;
+
+  data.push(record);
+  saveData(data);
+
+  updateUI(result.distance, result.eff);
+  drawChart();
+
+  amountEl.value="";
+  mileageEl.value="";
+};
+
+/* tabs */
+const tabRecord = document.getElementById("tabRecord");
+const tabHistory = document.getElementById("tabHistory");
 
 tabRecord.onclick=()=>{
-  recordPage.classList.remove("hidden")
-  historyPage.classList.add("hidden")
-  tabRecord.classList.add("active")
-  tabHistory.classList.remove("active")
-}
+  tabRecord.classList.add("active");
+  tabHistory.classList.remove("active");
+
+  recordPage.classList.remove("hidden");
+  historyPage.classList.add("hidden");
+};
 
 tabHistory.onclick=()=>{
-  recordPage.classList.add("hidden")
-  historyPage.classList.remove("hidden")
-  tabHistory.classList.add("active")
-  tabRecord.classList.remove("active")
-  renderHistory()
+  tabHistory.classList.add("active");
+  tabRecord.classList.remove("active");
+
+  recordPage.classList.add("hidden");
+  historyPage.classList.remove("hidden");
+
+  renderHistory();
+};
+
+/* =========================
+🚀 INIT
+========================= */
+
+const amountEl = document.getElementById("amount");
+const mileageEl = document.getElementById("mileage");
+
+function init(){
+  const data = getData();
+
+  if(data.length){
+    mileageEl.value = data[data.length-1].mileage;
+  }
+
+  drawChart();
 }
 
-// ===== 資料 =====
-function load(){
-  return JSON.parse(localStorage.getItem(KEY)||"[]")
-}
+init();
 
-function save(data){
-  localStorage.setItem(KEY,JSON.stringify(data))
-}
-
-// ===== 儲存 =====
-function saveRecord(){
-
-  const amount=Number(document.getElementById("amount").value)
-  const km=Number(document.getElementById("km").value)
-
-  if(!amount||!km) return alert("請輸入完整")
-
-  const data=load()
-
-  data.push({
-    id:Date.now()+"_"+Math.random(),
-    amount,
-    km,
-    time:Date.now(),
-    date:new Date().toISOString().slice(0,10)
-  })
-
-  save(data)
-
-  document.getElementById("amount").value=""
-  document.getElementById("km").value=""
-
-  alert("已儲存")
-}
-
-// ===== 歷史 =====
-function renderHistory(){
-
-  const list=document.getElementById("historyList")
-  const data=load().sort((a,b)=>b.time-a.time)
-
-  list.innerHTML=""
-
-  data.forEach(item=>{
-
-    const div=document.createElement("div")
-    div.className="history-item"
-
-    div.innerHTML=`
-      <div class="delete-btn">刪除</div>
-      <div class="item-content">
-        ${item.date} | ${item.km} km
-      </div>
-    `
-
-    const content=div.querySelector(".item-content")
-    const del=div.querySelector(".delete-btn")
-
-    let startX=0
-
-    content.addEventListener("touchstart",e=>{
-      startX=e.touches[0].clientX
-    })
-
-    content.addEventListener("touchmove",e=>{
-      let diff=e.touches[0].clientX-startX
-
-      if(diff<-30) div.classList.add("show")
-      if(diff>30) div.classList.remove("show")
-    })
-
-    content.onclick=()=>openSheet(item.id)
-    del.onclick=()=>remove(item.id)
-
-    list.appendChild(div)
-  })
-}
-
-// ===== 刪除 =====
-function remove(id){
-  let data=load()
-  data=data.filter(i=>i.id!==id)
-  save(data)
-  renderHistory()
-}
-
-// ===== 操作選單 =====
-function openSheet(id){
-
-  const sheet=document.createElement("div")
-  sheet.className="action-sheet"
-
-  sheet.innerHTML=`
-    <div class="sheet">
-      <button onclick="editKm('${id}')">修改里程</button>
-      <button onclick="editAmount('${id}')">修改金額</button>
-      <button onclick="closeSheet()">取消</button>
-    </div>
-  `
-
-  document.body.appendChild(sheet)
-}
-
-function closeSheet(){
-  document.querySelector(".action-sheet")?.remove()
-}
-
-// ===== 編輯 =====
-function editKm(id){
-  closeSheet()
-
-  const data=load()
-  const item=data.find(i=>i.id===id)
-
-  let v=prompt("里程",item.km)
-  if(v===null) return
-
-  item.km=Number(v)
-  save(data)
-  renderHistory()
-}
-
-function editAmount(id){
-  closeSheet()
-
-  const data=load()
-  const item=data.find(i=>i.id===id)
-
-  let v=prompt("金額",item.amount)
-  if(v===null) return
-
-  item.amount=Number(v)
-  save(data)
-  renderHistory()
-}
 </script>
 
 </body>
