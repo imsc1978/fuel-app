@@ -28,13 +28,20 @@ h2{
 }
 
 .row{
-  display:flex;
+  display:grid;
   gap:10px;
-  margin-bottom:10px;
+}
+
+.row-3{
+  grid-template-columns:1fr 1fr 1fr;
+}
+
+.row-2{
+  grid-template-columns:1fr 1fr;
 }
 
 input,select{
-  flex:1;
+  width:100%;
   padding:12px;
   border-radius:10px;
   border:none;
@@ -54,7 +61,8 @@ button{
 }
 
 canvas{
-  max-height:220px;
+  width:100%;
+  height:200px;
 }
 </style>
 </head>
@@ -65,7 +73,7 @@ canvas{
 
 <div class="card">
 
-  <div class="row">
+  <div class="row row-3">
     <select id="source">
       <option>中油</option>
       <option>台塑</option>
@@ -81,12 +89,12 @@ canvas{
     <input id="price" type="number" step="0.1">
   </div>
 
-  <div class="row">
-    <input id="amount" placeholder="輸入金額" type="number" inputmode="decimal">
-    <input id="km" placeholder="輸入總里程" type="number" inputmode="numeric">
+  <div class="row row-2" style="margin-top:10px;">
+    <input id="amount" placeholder="金額" type="number" inputmode="decimal">
+    <input id="km" placeholder="總里程" type="number" inputmode="numeric">
   </div>
 
-  <button onclick="save()">儲存</button>
+  <button style="margin-top:12px;" onclick="save()">儲存</button>
 </div>
 
 <div class="card">
@@ -118,7 +126,7 @@ let chartEl=document.getElementById("chart")
 
 let chartInstance=null
 
-// 更新油價
+// 油價更新
 function updatePrice(){
   price.value = priceMap[source.value][type.value]
 }
@@ -141,7 +149,7 @@ function save(){
 
   let last=records.length ? records[records.length-1] : null
 
-  // 🚨 防呆：里程不能倒退
+  // 防呆：里程不能倒退
   if(last && km <= last.km){
     alert(`里程錯誤\n目前輸入：${km}\n上一筆：${last.km}`)
     return
@@ -173,20 +181,21 @@ function save(){
 function render(){
 
   if(records.length < 2){
-    distance.innerText = "-"
-    kmpl.innerText = "-"
+    distance.innerText="-"
+    kmpl.innerText="-"
   }else{
-    let last = records[records.length-1]
-    let prev = records[records.length-2]
+    let last=records[records.length-1]
+    let prev=records[records.length-2]
 
-    let dist = last.km - prev.km
-    distance.innerText = dist
-    kmpl.innerText = last.kmpl.toFixed(2)
+    let dist=last.km-prev.km
+    distance.innerText=dist
+
+    kmpl.innerText=last.kmpl.toFixed(2)
   }
 
   // 自動帶入上一筆里程
   if(records.length){
-    kmInput.value = records[records.length-1].km
+    kmInput.value=records[records.length-1].km
   }
 
   drawChart()
@@ -198,17 +207,16 @@ function drawChart(){
   let labels=[]
   let data=[]
 
-  records.forEach((r,i)=>{
+  records.forEach(r=>{
     labels.push(r.date.slice(5))
     data.push(r.kmpl || null)
   })
 
-  // 避免重疊
   if(chartInstance){
     chartInstance.destroy()
   }
 
-  chartInstance = new Chart(chartEl,{
+  chartInstance=new Chart(chartEl,{
     type:"bar",
     data:{
       labels:labels,
