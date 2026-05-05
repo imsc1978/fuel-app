@@ -15,6 +15,14 @@ body {
     color: #fff;
 }
 
+/* 下拉提示 */
+#pullHint {
+    text-align: center;
+    font-size: 14px;
+    color: #aaa;
+    padding: 10px;
+}
+
 .header {
     padding: 20px;
     font-size: 22px;
@@ -75,13 +83,16 @@ canvas {
 
 <body>
 
+<div id="pullHint">⬇ 下拉重新整理</div>
+
 <div class="header">⛽ 加油紀錄</div>
 
 <div class="card">
     <div class="price">油價（中油95）：31.2 元/L</div>
 
-    <input id="amount" placeholder="輸入金額">
-    <input id="mileage" placeholder="輸入里程">
+    <!-- 數字鍵盤版本 -->
+    <input id="amount" placeholder="輸入金額" type="text" inputmode="decimal">
+    <input id="mileage" placeholder="輸入里程" type="text" inputmode="numeric">
 
     <button onclick="saveData()">儲存</button>
 </div>
@@ -105,7 +116,6 @@ if (lastMileage !== null) {
     document.getElementById("mileage").value = lastMileage;
 }
 
-// ⭐ 讀取歷史資料
 let records = JSON.parse(localStorage.getItem("records") || "[]");
 
 const ctx = document.getElementById('chart').getContext('2d');
@@ -135,11 +145,8 @@ function saveData() {
         document.getElementById("distance").innerText = distance + " km";
         document.getElementById("efficiency").innerText = efficiency.toFixed(2) + " km/L";
 
-        // ⭐ 存進紀錄
         records.push(efficiency.toFixed(2));
-
         localStorage.setItem("records", JSON.stringify(records));
-
         updateChart();
     }
 
@@ -154,6 +161,45 @@ function updateChart() {
     chart.data.datasets[0].data = records;
     chart.update();
 }
+
+/* =========================
+   下拉重整（手機用）
+========================= */
+
+let startY = 0;
+let pulling = false;
+
+document.addEventListener("touchstart", (e) => {
+    if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        pulling = true;
+    }
+});
+
+document.addEventListener("touchmove", (e) => {
+    if (!pulling) return;
+
+    let currentY = e.touches[0].clientY;
+    let diff = currentY - startY;
+
+    if (diff > 80) {
+        document.getElementById("pullHint").innerText = "放開以重新整理";
+    }
+});
+
+document.addEventListener("touchend", (e) => {
+    if (!pulling) return;
+
+    let endY = e.changedTouches[0].clientY;
+    let diff = endY - startY;
+
+    if (diff > 80) {
+        location.reload();
+    }
+
+    document.getElementById("pullHint").innerText = "⬇ 下拉重新整理";
+    pulling = false;
+});
 </script>
 
 </body>
