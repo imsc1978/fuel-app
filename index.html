@@ -269,13 +269,13 @@ font-weight:600;
         <input id="price" type="number" step="0.1">
       </div><div class="span-2">
         <label>金額 (元)</label>
-        <input id="amount" type="tel" inputmode="decimal" oninput="autoCalcLiter()">
+        <input id="amount" type="text" inputmode="decimal" pattern="[0-9.]*" oninput="autoCalcLiter()">
       </div><div class="span-2">
         <label>加油量 (L)</label>
-        <input id="liter" type="tel" inputmode="decimal" placeholder="自動換算">
+        <input id="liter" type="text" inputmode="decimal" pattern="[0-9.]*" placeholder="自動換算">
       </div><div class="span-2">
         <label>總里程 (km)</label>
-        <input id="mileage" type="tel" inputmode="numeric">
+        <input id="mileage" type="text" inputmode="decimal" pattern="[0-9.]*">
       </div>
     </div>
     <button id="saveBtn">儲存</button>
@@ -321,7 +321,7 @@ font-weight:600;
       </div>
       <div>
         <span class="modal-label">加油量 (L)</span>
-        <input id="editLiter" type="tel" inputmode="decimal">
+        <input id="editLiter" type="text" inputmode="decimal" pattern="[0-9.]*">
       </div>
     </div>
     <div class="modal-grid">
@@ -331,7 +331,7 @@ font-weight:600;
       </div>
       <div>
         <span class="modal-label">總里程 (km)</span>
-        <input id="editMileage" type="tel" inputmode="decimal">
+        <input id="editMileage" type="text" inputmode="decimal" pattern="[0-9.]*">
       </div>
     </div>
     <div class="modal-hint" id="editHint"></div>
