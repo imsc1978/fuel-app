@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -89,149 +88,148 @@ button{
 
 /* ===== 歷史列表：左滑刪除 ===== */
 .item-wrap{
-position:relative;
-overflow:hidden;
-border-bottom:1px solid #2a2a2a;
+  position:relative;
+  overflow:hidden;
+  border-bottom:1px solid #2a2a2a;
 }
 .item-delete-bg{
-position:absolute;
-right:0;top:0;bottom:0;
-width:80px;
-background:#ff3b30;
-display:flex;align-items:center;justify-content:center;
-font-size:13px;color:#fff;font-weight:600;
-pointer-events:none;
+  position:absolute;
+  right:0;top:0;bottom:0;
+  width:80px;
+  background:#ff3b30;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:#fff;font-weight:600;
+  pointer-events:none;
 }
 .item{
-position:relative;
-padding:12px 4px;
-font-size:14px;
-background:#1c1c1e;
-transition:transform 0.18s ease;
-cursor:pointer;
-touch-action:pan-y;
-will-change:transform;
+  position:relative;
+  padding:12px 4px;
+  font-size:14px;
+  background:#1c1c1e;
+  transition:transform 0.18s ease;
+  cursor:pointer;
+  touch-action:pan-y;
+  will-change:transform;
 }
 
 /* ===== 修改 Modal ===== */
 .modal-overlay{
-position:fixed;inset:0;
-background:rgba(0,0,0,0.72);
-z-index:999;
-display:flex;align-items:flex-end;
-backdrop-filter:blur(6px);
--webkit-backdrop-filter:blur(6px);
-visibility:hidden;
-opacity:0;
-transition:opacity 0.2s,visibility 0.2s;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.72);
+  z-index:999;
+  display:flex;align-items:flex-end;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  visibility:hidden;
+  opacity:0;
+  transition:opacity 0.2s,visibility 0.2s;
 }
 .modal-overlay.show{
-visibility:visible;
-opacity:1;
+  visibility:visible;
+  opacity:1;
 }
 .modal{
-background:#1c1c1e;
-border-radius:20px 20px 0 0;
-padding:24px 20px 44px;
-width:100%;
-max-width:500px;
-margin:0 auto;
-box-sizing:border-box;
+  background:#1c1c1e;
+  border-radius:20px 20px 0 0;
+  padding:24px 20px 44px;
+  width:100%;
+  max-width:500px;
+  margin:0 auto;
+  box-sizing:border-box;
 }
 .modal-title{
-font-size:17px;font-weight:600;
-margin-bottom:20px;text-align:center;color:#fff;
+  font-size:17px;font-weight:600;
+  margin-bottom:20px;text-align:center;color:#fff;
 }
 .modal-grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:10px;margin-bottom:10px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;margin-bottom:10px;
 }
 .modal-label{
-font-size:13px;color:#aaa;
-margin-bottom:4px;display:block;
+  font-size:13px;color:#aaa;
+  margin-bottom:4px;display:block;
 }
 .modal input{
-width:100%;padding:12px;
-border-radius:10px;border:none;
-background:#2c2c2e;color:#fff;
-font-size:16px;box-sizing:border-box;
+  width:100%;padding:12px;
+  border-radius:10px;border:none;
+  background:#2c2c2e;color:#fff;
+  font-size:16px;box-sizing:border-box;
 }
 .modal-hint{
-font-size:12px;color:#4da3ff;
-margin-bottom:12px;text-align:center;
+  font-size:12px;color:#4da3ff;
+  margin-bottom:12px;text-align:center;
 }
 .modal-btns{
-display:flex;gap:10px;margin-top:16px;
+  display:flex;gap:10px;margin-top:16px;
 }
 .modal-btns button{
-flex:1;padding:14px;border:none;
-border-radius:12px;font-size:16px;
-cursor:pointer;margin-top:0;
+  flex:1;padding:14px;border:none;
+  border-radius:12px;font-size:16px;
+  cursor:pointer;margin-top:0;
 }
 .btn-cancel{ background:#333;color:#fff; }
 .btn-save-edit{ background:#4da3ff;color:#fff; }
 
 /* ===== 下拉更新 ===== */
 .pull-indicator{
-text-align:center;
-font-size:13px;
-color:#aaa;
-height:0;
-overflow:hidden;
-transition:height 0.2s;
-display:flex;align-items:center;justify-content:center;
-gap:6px;
+  text-align:center;
+  font-size:13px;
+  color:#aaa;
+  height:0;
+  overflow:hidden;
+  transition:height 0.2s;
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;
 }
 .pull-indicator.pulling{ height:44px; }
 .pull-indicator.refreshing{ height:44px; color:#4da3ff; }
 .spin{
-display:inline-block;
-animation:spin 0.8s linear infinite;
+  display:inline-block;
+  animation:spin 0.8s linear infinite;
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
 
 /* ===== 歷史格式 ===== */
 .item-row1{
-display:flex;
-justify-content:space-between;
-align-items:center;
-font-size:14px;
-font-weight:500;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:14px;
+  font-weight:500;
 }
 .item-date{ color:#fff; }
 .item-price-tag{
-font-size:12px;
-color:#4da3ff;
-background:rgba(77,163,255,0.15);
-padding:2px 8px;
-border-radius:6px;
+  font-size:12px;
+  color:#4da3ff;
+  background:rgba(77,163,255,0.15);
+  padding:2px 8px;
+  border-radius:6px;
 }
 .item-row2{
-display:flex;
-justify-content:space-between;
-margin-top:5px;
-font-size:13px;
-color:#aaa;
+  display:flex;
+  justify-content:space-between;
+  margin-top:5px;
+  font-size:13px;
+  color:#aaa;
 }
 .item-row3{
-display:flex;
-justify-content:space-between;
-margin-top:3px;
-font-size:12px;
-color:#666;
-border-top:1px solid #2a2a2a;
-padding-top:5px;
-margin-top:6px;
+  display:flex;
+  justify-content:space-between;
+  margin-top:3px;
+  font-size:12px;
+  color:#666;
+  border-top:1px solid #2a2a2a;
+  padding-top:5px;
+  margin-top:6px;
 }
 .item-eff{
-color:#51cf66;
-font-weight:600;
+  color:#51cf66;
+  font-weight:600;
 }
 .item-eff.bad{ color:#ff6b6b; }
 .item-eff.mid{ color:#ffd43b; }
 </style>
-
 </head>
 
 <body>
@@ -246,7 +244,6 @@ font-weight:600;
 </div>
 
 <!-- ===== 紀錄頁 ===== -->
-
 <div id="recordPage">
   <div class="card">
     <div class="form-grid">
@@ -301,7 +298,6 @@ font-weight:600;
 </div>
 
 <!-- ===== 歷史頁 ===== -->
-
 <div id="historyPage" class="hidden">
   <div class="pull-indicator" id="pullHistory">↓ 下拉更新</div>
   <div id="historyList" class="card"></div>
@@ -310,7 +306,6 @@ font-weight:600;
 </div><!-- /container -->
 
 <!-- ===== 修改 Modal ===== -->
-
 <div class="modal-overlay" id="editModal">
   <div class="modal">
     <div class="modal-title">修改紀錄</div>
@@ -652,7 +647,7 @@ function renderHistory(){
     if(eff){
       const v = parseFloat(eff);
       if(avgEff > 0){
-        effColor = v >= avgEff ? "#ff6b6b" : "#51cf66"; // 高於平均→費油→紅；低於平均→省油→綠
+        effColor = v >= avgEff ? "#51cf66" : "#ff6b6b"; // 高於平均→省油→綠；低於平均→耗油→紅
       } else {
         effColor = v>=30?"#51cf66":v>=20?"#ffd43b":"#ff6b6b";
       }
@@ -876,6 +871,5 @@ setupPullRefresh("pullRecord", ()=>{
 // 歷史頁下拉更新
 setupPullRefresh("pullHistory", ()=>{ renderHistory(); });
 </script>
-
 </body>
 </html>
